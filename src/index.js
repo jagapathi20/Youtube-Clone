@@ -1,14 +1,19 @@
-import { loadEnvFile } from 'node:process';
-import connectDB from "./db/index.js";
+import dotenv from "dotenv"
+import "dotenv/config"
+import connectDB from "./db/index.js"
+import {app} from "./app.js"
 
-loadEnvFile()
+dotenv.config({
+    path: './.env'
+})
+
 connectDB()
 .then(() => {
     app.on("error", (error) => {
         console.log("ERR:" ,error)
         throw error
     })
-    port = process.env.PORT || 8000
+    const port = process.env.PORT || 8000
     app.listen(port, () => {
         console.log(`server is running at port: ${port}`)
     })
