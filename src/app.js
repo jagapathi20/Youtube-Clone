@@ -15,8 +15,10 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 import userRouter from "./routes/user.routes.js"
+import commentRouter from "./routes/comment.routes.js"
 
 app.use("/users", userRouter)
+app.use("/comments", commentRouter)
 
 
 
