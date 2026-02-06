@@ -1,8 +1,9 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import {User} from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {uploadOnCloudinary, deleteFromCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import fs from "fs"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
 
@@ -22,8 +23,17 @@ const generateAccessAndRefreshTokens = async(userId) => {
 }
 
 const registerUser = asyncHandler(async (req, res) =>{
-    console.log("Files: ", req.files)
-    console.log("Body: ", req.body)
+
+    const avatarLocalpath = req.files?.avatar[0]?.path
+    let coverImageLocalPath
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
+
+    const cleanupLocalFiles = () => {
+        if (avatarLocalpath && fs.existsSync(avatarLocalpath)) fs.unlinkSync(avatarLocalpath)
+        if (coverImageLocalPath && fs.existsSync(coverImageLocalPath)) fs.unlinkSync(coverImageLocalPath)
+    }
 
     const {fullName, email, username, password} = req.body
 
@@ -31,6 +41,7 @@ const registerUser = asyncHandler(async (req, res) =>{
         [fullName, email, username, password].some((field) =>
         field?.trim() === "")
     ){
+        cleanupLocalFiles()
         throw new ApiError(400, "All fields are required")
     }
 
@@ -38,44 +49,58 @@ const registerUser = asyncHandler(async (req, res) =>{
         $or: [{username}, {email}]
     })
     if (existingUser){
+        cleanupLocalFiles()
         throw new ApiError(409, "User with email or username already exists")
     }
 
-    const avatarLocalpath = req.files?.avatar[0]?.path
     if(!avatarLocalpath){
+        cleanupLocalFiles()
         throw new ApiError(400, "Avatar file missing on server")
     }
-    let coverImageLocalPath
-    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
-        coverImageLocalPath = req.files.coverImage[0].path
-    }
-
+    
     const avatar = await uploadOnCloudinary(avatarLocalpath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
     if (!avatar){
+        cleanupLocalFiles()
         throw new ApiError(400, "Failed to upload Avatar file to cloudinary")
     }
 
-    const user = await User.create({
-        fullName,
-        avatar: avatar.url,
-        coverImage: coverImage?.url || "",
-        email,
-        password,
-        username
-    })
+    let user
 
-    const Usercreated = await User.findById(user._id).select(
+    try{
+        user = await User.create({
+            fullName,
+            avatar: avatar.url,
+            coverImage: coverImage?.url || "",
+            email,
+            password,
+            username
+        })
+
+        const Usercreated = await User.findById(user._id).select(
         "-password -refreshToken"
-    )
+        )
 
-    if(!Usercreated){
-        throw new ApiError(500, "User not created")
+        if(!Usercreated){
+            throw new ApiError(500, "User not created")
+        }
+
+        cleanupLocalFiles()
+
+        return res.status(201).json(
+            new ApiResponse(200, Usercreated, "User registered Successfully")
+        )
+
+    }catch(error){
+
+        if (avatar) await deleteFromCloudinary(avatar.public_id)
+        if (coverImage) await deleteFromCloudinary(coverImage.public_id)
+        
+       cleanupLocalFiles()
+
+        throw new ApiError(500, error?.message || "Internal server error during registration")
     }
-
-    return res.status(201).json(
-        new ApiResponse(200, Usercreated, "User registered Successfully")
-    )
 
 })
 
@@ -177,16 +202,16 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             secure: true
         }
     
-        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+        const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
     
         return res
         .status(200)
         .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", newRefreshToken, options)
+        .cookie("refreshToken", refreshToken, options)
         .json(
             new ApiResponse(
                 200, 
-                {accessToken, refreshToken: newRefreshToken},
+                {accessToken, refreshToken: refreshToken},
                 "Access token refreshed"
             )
         )
@@ -218,31 +243,31 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
 const getCurrentUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully")
+    .json(new ApiResponse(200, req.user, "current user fetched successfully"))
 })
 
 
-const updateAccountDetails = await asyncHandler(async(req, res) => {
+const updateAccountDetails = asyncHandler(async(req, res) => {
     const {username, fullName} = req.body
 
-    if (!fullName && !email){
+    if (!fullName && !username){
         throw new ApiError(400, "any one field is required")
     }
 
-    const user = User.findByIdAndUpdate(
-        req.user?._idid, 
+    const updateFields = {}
+    if(fullName) updateFields.fullName = fullName
+    if(username) updateFields.username = username
+    const user = await User.findByIdAndUpdate(
+        req.user?._id, 
         {
-            $set: {
-                fullName,
-                email: email
-            }
+            $set: updateFields
         }, 
         {new: true}
     ).select("-password")
 
     return res
     .status(200)
-    .json(new ApiError(
+    .json(new ApiResponse(
         200,
         user,
         "Account details updated successfully"
@@ -263,11 +288,12 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
     if (!avatar.url) {
+        fs.unlinkSync(avatarLocalPath)
         throw new ApiError(400, "Error while uploading on Cloudinary");
     }
 
     if (oldAvatarUrl) {
-        const publicId = oldAvatarUrl.split("/").pop().split(".")[0];
+        const publicId = oldAvatarUrl.split("/").slice(-2).join("/").split(".")[0]
         await deleteFromCloudinary(publicId);
     }
 
@@ -299,11 +325,12 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
     if (!coverImage.url) {
+        fs.unlinkSync(coverImageLocalPath)
         throw new ApiError(400, "Error while uploading cover image to Cloudinary")
     }
 
     if (oldCoverImageUrl) {
-        const publicId = oldCoverImageUrl.split("/").pop().split(".")[0]
+        const publicId = oldCoverImageUrl.split("/").slice(-2).join("/").split(".")[0]
         await deleteFromCloudinary(publicId)
     }
 
@@ -362,7 +389,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>{
                 },
                 isSubscribed:{
                     $cond: {
-                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        if: {$in: [new mongoose.Types.ObjectId(req.user?._id), "$subscribers.subscriber"]},
                         then:true,
                         else: false
                     }
@@ -440,12 +467,15 @@ const getWatchHistory = asyncHandler(async(req, res) => {
         }
     ])
 
+    if (!user.length){
+        throw new ApiError(404, "User not found")
+    }
     return res
     .status(200)
     .json(
         new ApiResponse(
             200,
-            user[0].WatchHistory,
+            user[0].watchHistory,
             "watch history fetched"
         )
     )
