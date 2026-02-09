@@ -36,9 +36,7 @@ The backend utilizes MongoDB’s Aggregation Framework to handle complex data jo
 
 ---
 
-## 🚀 Scalability & Interview Talking Points
-
-For Big Tech backend interviews, this implementation demonstrates an understanding of:
+##  Scalability 
 
 1.  **Read vs. Write Trade-offs**: We prioritize Read performance (checking subscription status) over Write performance, as subscription checks happen significantly more often than the act of subscribing.
 2.  **Data Integrity**: Using database-level constraints instead of relying solely on application logic to handle edge cases like double-clicks.
@@ -46,8 +44,3 @@ For Big Tech backend interviews, this implementation demonstrates an understandi
 4.  **Operational Awareness**: Designing for production-ready environments where query optimization directly correlates to lower infrastructure costs and better user experience.
 
 ---
-
-## 🛠 Tech Stack
-- **Database**: MongoDB (Mongoose ODM)
-- **Runtime**: Node.js
-- **Pattern**: Controller-Service-Model Architecture
