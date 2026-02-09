@@ -31,8 +31,12 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     if(existingSubscription){
         await Subscription.findByIdAndDelete(existingSubscription._id)
 
+        await User.findByIdAndUpdate(channelId,
+            {$inc: {subscribersCount: - 1}}
+        )
+
         return res
-        .status
+        .status(200)
         .json(new ApiResponse(200,
             {isSubscribed: false},
             "Unsubscribed successfully"
@@ -43,6 +47,10 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             channel: channelId
         })
 
+        await User.findByIdAndUpdate(channelId,
+            {$inc: {subscribersCount: 1}}
+        )
+        
         return res
         .status(200)
         .json(new ApiResponse(200, 
@@ -52,7 +60,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     }
 })
 
-// controller to return subscriber list of a channel
+
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     const {channelId} = req.params
     const userId = req.user._id
@@ -65,11 +73,27 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You do not have access to get subscribers of this channel")
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const skip = (page - 1) * limit
+
+    const user = await User.findById(channelId).select("subscribersCount")
+    const totalSubscribers = user.subscriberCount || 0
+
     const subscribers = await Subscription.aggregate([
         {
             $match: {
                 channel: new mongoose.Types.ObjectId(userId)
             }
+        },
+        {
+            $sort: {createdAt: - 1}
+        },
+        {
+            $skip: skip
+        },
+        {
+            $limit: limit
         },
         {
             $lookup:{
@@ -93,10 +117,21 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 
     return res
     .status(200)
-    .json( new ApiResponse(200, subscribers, "subscribers fetched successfully"))
+    .json( new ApiResponse(
+        200, 
+        {
+            subscribers,
+            pagnation:{
+                totalSubscribers,
+                totalPages: Math.ceil(totalSubscribers / limit),
+                currentPage: page,
+                limit
+            }
+        },
+        "subscribers fetched successfully"))
 })
 
-// controller to return channel list to which user has subscribed
+
 const getSubscribedChannels = asyncHandler(async (req, res) => {
     const userId = req.user._id
 

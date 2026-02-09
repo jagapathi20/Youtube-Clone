@@ -45,6 +45,10 @@ const userSchema = new Schema(
         },
         refreshToken: {
             type: String
+        },
+        subscribersCount: {
+            type: Number,
+            default: 0
         }
     },
     {
