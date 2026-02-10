@@ -7,7 +7,8 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 
 const getVideoComments = asyncHandler(async(req, res) => {
     const {videoId} = req.params
-    const {page = 1, limit  = 10} = req.query
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
 
     if (!mongoose.Types.ObjectId.isValid(videoId)) {
         throw new ApiError(400, "Invalid Video ID format");
@@ -46,8 +47,8 @@ const getVideoComments = asyncHandler(async(req, res) => {
     ])
 
     const options = {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10)
+        page: page,
+        limit: limit
     }
 
     const comments = await Comment.aggregatePaginate(aggregate, options)

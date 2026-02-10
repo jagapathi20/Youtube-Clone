@@ -30,7 +30,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
     
-   const [tweets, totalTweets] = await Promise([
+   const [tweets, totalTweets] = await Promise.all([
     Tweet.find({owner: userId})
         .sort("-createdAt")
         .skip(skip)
@@ -84,7 +84,6 @@ const updateTweet = asyncHandler(async (req, res) => {
 })
 
 const deleteTweet = asyncHandler(async (req, res) => {
-    //TODO: delete tweet
     const userId = req.user._id
     const {tweetId} = req.params
 
