@@ -6,7 +6,6 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 import { User } from "../models/user.model.js"
 
 const getChannelStats = asyncHandler(async (req, res) => {
-    // total video views,total videos, total subscribers, total likes etc.
     const userId = req.user._id
     const totalSubscribers = await User.findById(userId).select("subscriberCount")
     
@@ -46,7 +45,6 @@ const getChannelStats = asyncHandler(async (req, res) => {
 })
 
 const getChannelVideos = asyncHandler(async (req, res) => {
-    // TODO: Get all the videos uploaded by the channel
     const userId = req.user._id
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
