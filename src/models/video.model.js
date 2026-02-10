@@ -1,4 +1,4 @@
-import mongoose, {Schema, schema} from "mongoose"
+import mongoose, {Schema} from "mongoose"
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2"
 
 const videoschema = new Schema(
@@ -8,6 +8,10 @@ const videoschema = new Schema(
             required: true
         },
         thumbnail: {
+            type: String,
+            required: true
+        },
+        title:{
             type: String,
             required: true
         },
