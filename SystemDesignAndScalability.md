@@ -93,3 +93,17 @@ By limiting the result set, we ensure the Node.js event loop is not blocked by p
 * **Compound Indexing:** Utilized `{ subscriber: 1, channel: 1 }` to reduce search complexity from $O(N)$ to $O(\log N)$.
 * **Parallelism:** Implemented `Promise.all()` to fetch metadata and list data concurrently, reducing API response time by ~50%.
 * **Advanced Scale:** For datasets exceeding millions of records, I would recommend a transition to **Cursor-based Pagination** to avoid the performance degradation of the `skip` operator.
+
+##  Dashboard Implementation & Scalability
+
+### **1. Computational Efficiency**
+* **The Challenge:** Fetching stats for views, videos, and likes individually would require 3-4 separate round-trips to the database.
+* **The Solution:** Combined Video and Like statistics into a single **Aggregation Pipeline**. By grouping at the end of the pipeline, we reduce CPU overhead and context switching in the database engine.
+
+### **2. Hybrid Data Retrieval**
+* **Pre-calculated vs. Real-time:** * **Subscriber Count:** $O(1)$ lookup via the **Counter Pattern** on the User model.
+    * **Engagement Stats:** Real-time aggregation for likes and views to ensure absolute accuracy for the creator's dashboard.
+
+### **3. Parallel Execution ($O(1)$ Network Overhead)**
+* **Implementation:** Used `Promise.all()` in the `getChannelVideos` controller to handle data fetching and document counting concurrently.
+* **Impact:** Reduces the "Time to Interactive" (TTI) for the frontend by cutting the total waiting time for I/O operations by nearly half.
