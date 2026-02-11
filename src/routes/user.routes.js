@@ -13,6 +13,7 @@ import {
     updateUserCoverImage } from "../controllers/user.controller.js"
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
+import {cacheMiddleware} from "../middlewares/cache.middleware.js"
 
 const router = Router()
 
@@ -46,8 +47,14 @@ router.route("/change-avatar").patch(verifyJWT, upload.single("avatar"), updateU
 
 router.route("/update_coverImage").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
 
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/c/:username").get(
+    verifyJWT, 
+    cacheMiddleware(300, false),
+    getUserChannelProfile)
 
-router.route("/history").get(verifyJWT, getWatchHistory)
+router.route("/history").get(
+    verifyJWT, 
+    cacheMiddleware(60, true),
+    getWatchHistory)
 
 export default router

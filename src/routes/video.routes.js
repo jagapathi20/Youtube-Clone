@@ -9,13 +9,14 @@ import {
 } from "../controllers/video.controller.js"
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 import {upload} from "../middlewares/multer.middleware.js"
+import {cacheMiddleware} from "../middlewares/cache.middleware.js"
 
 const router = Router();
-router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
+router.use(verifyJWT); 
 
 router
     .route("/")
-    .get(getAllVideos)
+    .get(cacheMiddleware(300, false), getAllVideos)
     .post(
         upload.fields([
             {
@@ -33,7 +34,7 @@ router
 
 router
     .route("/:videoId")
-    .get(getVideoById)
+    .get(cacheMiddleware(120, false), getVideoById)
     .delete(deleteVideo)
     .patch(upload.single("thumbnail"), updateVideo);
 

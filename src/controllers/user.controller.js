@@ -265,6 +265,8 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
         {new: true}
     ).select("-password")
 
+    await invalidateCache(`c:${user.username}`)
+
     return res
     .status(200)
     .json(new ApiResponse(
@@ -307,6 +309,8 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
         { new: true }
     ).select("-password");
 
+    await invalidateCache(`c:${user.username}`)
+
     return res
         .status(200)
         .json(new ApiResponse(200, updatedUser, "Avatar updated and old file cleaned up"));
@@ -343,6 +347,8 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         },
         { new: true }
     ).select("-password")
+
+    await invalidateCache(`c:${user.username}`)
 
     return res
         .status(200)

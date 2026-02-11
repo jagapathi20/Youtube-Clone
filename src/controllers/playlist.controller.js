@@ -3,6 +3,7 @@ import {Playlist} from "../models/playlist.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
+import { invalidateCache } from "../utils/cacheInvalidator.js"
 
 const createPlaylist = asyncHandler(async(req, res) => {
     const userId = req.user._id
@@ -101,6 +102,10 @@ const addVideoToPlaylist = asyncHandler(async(req, res) => {
 
     if (!playlist) throw new ApiError(404, "Playlist not found")
 
+    await invalidateCache(`playlist:${playlistId}`)
+
+    await invalidateCache(`playlists:u:${req.user._id}`)
+
     return res
         .status(200)
         .json(new ApiResponse(200, playlist, "Video added to playlist"))
@@ -169,6 +174,8 @@ const updatePlaylist = asyncHandler(async(req, res) => {
     if(name) playlist.name = name
     if(description) playlist.description = description
     const updatedPlaylist = await playlist.schemaLevelProjections({validateBeforeSave: false})
+    await invalidateCache(`playlist:${playlistId}`)
+    await invalidateCache(`playlist:u:${userId}`)
 
     return res
         .status(200)

@@ -6,12 +6,13 @@ import {Tweet} from "../models/tweet.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
+import { invalidateCache } from "../utils/cacheInvalidator.js"
 
 const toggleVideoLike = asyncHandler(async(req, res) => {
     const {videoId} = req.params
     const userId = req.user._id
 
-    if(!mongoose.Types.ObjectId.isValid(videoId)){
+    if(!isValidObjectId(videoId)){
         throw new ApiError(400, "Invalid video Id format")
     }
 
@@ -25,36 +26,36 @@ const toggleVideoLike = asyncHandler(async(req, res) => {
         likedBy: userId
     })
 
+    let isLikedNow
     if(existingLike){
         await Like.findByIdAndDelete(existingLike._id)
+        isLikedNow = false
 
-        return res
-        .status(200)
-        .json(new ApiResponse(200,
-            {isLiked: false},
-            "Unliked successfully"
-        ))
     }else{
         await Like.create({
             video: videoId,
             likedBy: userId
         })
+        isLikedNow = true
 
-        return res
-        .status(200)
-        .json(new ApiResponse(200,
-            {isLiked: true},
-            "Liked successfully"
-        ))
     }
 
+    await invalidateCache(`stats:u:${video.owner}`)
+
+    return res
+        .status(200)
+        .json(new ApiResponse(
+            200, 
+            { isLiked: isLikedNow }, 
+            isLikedNow ? "Liked successfully" : "Unliked successfully"
+        ));
 })
 
 const toggleCommentLike = asyncHandler(async(req, res) => {
     const {commentId} = req.params
     const userId = req.user._id
 
-    if(!mongoose.Types.ObjectId.isValid(commentId)){
+    if(!isValidObjectId(commentId)){
         throw new ApiError(400, "Invalid comment Id format")
     }
 
@@ -91,7 +92,7 @@ const toggleTweetLike = asyncHandler(async(req, res) => {
     const {tweetId} = req.params
     const userId = req.user._id
 
-    if(!mongoose.Types.ObjectId.isValid(tweetId)){
+    if(!isValidObjectId.isValid(tweetId)){
         throw new ApiError(400, "Invalid tweet Id format")
     }
 

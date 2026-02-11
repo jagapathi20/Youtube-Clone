@@ -28,6 +28,8 @@ const toggleSubscription = asyncHandler(async (req, res) => {
         channel: channelId
     })
 
+    let isSubscribedNow
+
     if(existingSubscription){
         await Subscription.findByIdAndDelete(existingSubscription._id)
 
@@ -35,12 +37,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             {$inc: {subscribersCount: - 1}}
         )
 
-        return res
-        .status(200)
-        .json(new ApiResponse(200,
-            {isSubscribed: false},
-            "Unsubscribed successfully"
-        ))
+    
     }else{
         await Subscription.create({
             subscriber: userId,
@@ -51,13 +48,19 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             {$inc: {subscribersCount: 1}}
         )
         
-        return res
-        .status(200)
-        .json(new ApiResponse(200, 
-            {isSubscribed: true},
-            "Subscribed Successfully"
-        ))
     }
+
+    await invalidateCache(`c:${channel.username}`); 
+    await invalidateCache(`stats:u:${channelId}`);
+    await invalidateCache(`subscribers:u:${channelId}`);
+
+    return res
+        .status(200)
+        .json(new ApiResponse(
+            200, 
+            { isSubscribed: isSubscribedNow }, 
+            isSubscribedNow ? "Subscribed successfully" : "Unsubscribed successfully"
+        ));
 })
 
 

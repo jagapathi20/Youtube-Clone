@@ -1,11 +1,11 @@
 import mongoose, {isValidObjectId} from "mongoose"
 import {Video} from "../models/video.model.js"
-import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {deleteFromCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js"
-
+import {redisClient} from "../db/redis.js"
+import {invalidateCache} from "../utils/cacheInvalidator.js"
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
@@ -143,13 +143,8 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid Video Id")
     }
 
-    const video = await Video.findByIdAndUpdate(
-        videoId,
-        {
-            $inc:{views: 1}
-        },
-        {new: true}
-    ).populate("owner", "username, avatar fullName")
+    await redisClient.hincrby("video:view:buffer", videoId, 1)
+    const video = await Video.findById(videoId).populate("owner", "username, avatar fullName")
 
     if(!video){
         throw new ApiError(404, "vieo not found")
@@ -157,7 +152,7 @@ const getVideoById = asyncHandler(async (req, res) => {
 
     return res
     .status(200)
-    .json(new ApiResponse(200, video, "video fetched and view count updated"))
+    .json(new ApiResponse(200, video, "video fetched successfully"))
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
@@ -203,6 +198,8 @@ const updateVideo = asyncHandler(async (req, res) => {
         {new: true}
     )
 
+    await invalidateCache(`v/${videoId}`)
+    await invalidateCache(`all-videos`)
     return res
     .status(200)
     .json(new ApiResponse(200, updateVideo, "video details updated"))
@@ -234,6 +231,9 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
     await Video.findByIdAndDelete(videoId)
 
+    await invalidateCache(`v/${videoId}`)
+    await invalidateCache(`all-videos`)
+
     return res
     .status(200)
     .json(new ApiResponse(200, {}, "video deleted successfully"))
@@ -260,6 +260,8 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     video.isPublished = !video.isPublished
 
     await video.save({vallidateBeforeSave: false})
+
+    await invalidateCache(`videos`);
 
     return res
     .status(200)

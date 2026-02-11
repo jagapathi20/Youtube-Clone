@@ -4,6 +4,7 @@ import {Video} from "../models/video.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
+import {invalidateCache} from "../utils/cacheInvalidator.js"
 
 const getVideoComments = asyncHandler(async(req, res) => {
     const {videoId} = req.params
@@ -98,7 +99,8 @@ const addComment = asyncHandler(async(req, res) => {
     if (!populatedComment) {
         throw new ApiError(500, "Comment created but failed to fetch details")
     }
-
+    
+    await invalidateCache(`comments:${videoId}`)
     return res
     .status(201)
     .json(new ApiResponse(201, populatedComment, "Comment added Successfully"))
@@ -132,6 +134,8 @@ const updateComment = asyncHandler(async (req, res) => {
     comment.content = content;
     const updatedComment = await comment.save({ validateBeforeSave: false });
 
+    await invalidateCache(`comments:${comment.video}`)
+    
     return res
         .status(200)
         .json(new ApiResponse(200, updatedComment, "Comment updated successfully"));
@@ -158,6 +162,7 @@ const deleteComment = asyncHandler(async (req, res) => {
 
    
     await Comment.findByIdAndDelete(commentId);
+    await invalidateCache(`comments:${comment.video}`)
 
     return res
         .status(200)

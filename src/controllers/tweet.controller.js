@@ -18,6 +18,8 @@ const createTweet = asyncHandler(async (req, res) => {
     owner: userId
     })
 
+    await invalidateCache(`tweets:u:${userId}`)
+
     return res
     .status(201)
     .json(new ApiResponse(201, tweet, "tweet created successfully"))
@@ -78,6 +80,8 @@ const updateTweet = asyncHandler(async (req, res) => {
     tweet.content = content
     await Tweet.save({validateBeforeSave: false})
 
+    await invalidateCache(`tweets:u:${userId}`)
+
     return res
     .status(200)
     .json(new ApiResponse(200, tweet, "tweet updated successfully"))
@@ -102,6 +106,8 @@ const deleteTweet = asyncHandler(async (req, res) => {
     }
 
     await Tweet.findByIdAndDelete(tweet._id)
+
+    await invalidateCache(`tweets:u:${userId}`)
 
     return res
     .status(200)
