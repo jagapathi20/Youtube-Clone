@@ -9,8 +9,6 @@ The `Subscription` model is designed as a join-table to handle the many-to-many 
 - **Channel**: Reference to the `User` model being subscribed to.
 - **Timestamps**: Automatically managed `createdAt` and `updatedAt` fields for activity tracking.
 
-
-
 ---
 
 ##  Performance Optimizations
@@ -31,8 +29,6 @@ The backend utilizes MongoDB’s Aggregation Framework to handle complex data jo
 
 * **Early Filtering**: The `$match` stage is placed at the beginning of the pipeline to leverage indexes and reduce the document set before performing `$lookup` operations.
 * **Memory Management**: By projecting only necessary fields (e.g., `username`, `avatar`) within the pipeline, we minimize the RAM usage on the database server and reduce the network payload size.
-
-
 
 ---
 
@@ -107,3 +103,60 @@ By limiting the result set, we ensure the Node.js event loop is not blocked by p
 ### **3. Parallel Execution ($O(1)$ Network Overhead)**
 * **Implementation:** Used `Promise.all()` in the `getChannelVideos` controller to handle data fetching and document counting concurrently.
 * **Impact:** Reduces the "Time to Interactive" (TTI) for the frontend by cutting the total waiting time for I/O operations by nearly half.
+
+
+# System Design: Caching and Scalability Architecture
+
+This architecture is designed to support a high-traffic video platform by prioritizing read efficiency, horizontal scalability, and data consistency.
+
+---
+
+### 1. High-Performance Load Balancing
+To manage concurrent requests and ensure high availability, the system utilizes **Nginx** as a Layer 7 load balancer.
+
+* **Horizontal Scaling**: Traffic is distributed across four identical Node.js instances (running on ports `1111`, `2222`, `3333`, and `4444`) to prevent any single server from becoming a bottleneck.
+* **Least Connections Algorithm**: The `least_conn` directive routes new requests to the instance with the fewest active connections, optimizing resource usage for varied tasks like video processing versus metadata retrieval.
+* **Data Integrity**: Nginx is configured with `proxy_set_header` (e.g., `X-Real-IP`) to ensure the backend identifies the true client source for security and analytical purposes.
+* **Media Handling**: The `client_max_body_size` is set to **100M** to accommodate large video uploads that would otherwise be rejected by default Nginx limits.
+
+
+
+---
+
+### 2. Distributed Caching Strategy (Redis)
+A **Cache-Aside** pattern is implemented via Redis to minimize database latency for read-heavy operations.
+
+* **Personalized vs. Global Keys**: 
+    * **Global**: Public video feeds and profiles use standard keys (e.g., `cache:/api/v1/videos`).
+    * **Personalized**: Private data like **Watch History** or **Dashboard Stats** include the User ID in the key (e.g., `stats:u:{userId}`) to ensure isolation and privacy.
+* **Write-time Invalidation (Cache Busting)**: To maintain data consistency, any POST, PATCH, or DELETE operation triggers an `invalidateCache` call. This utilizes a Redis `SCAN` and `DEL` pipeline to purge stale entries across the cluster.
+* **Strategic Application**: Caching is prioritized for computationally expensive MongoDB aggregations, such as creator dashboard statistics.
+
+---
+
+### 3. Decoupled View Buffering & Synchronization
+To avoid database write-locks during viral traffic spikes, video view counts are handled asynchronously.
+
+* **Redis View Buffer**: Incremental views are recorded in a Redis hash (`video:views:buffer`) using the $O(1)$ `hincrby` operation.
+* **Cron-based Write-Back**: A scheduled task (`viewSync.cron.js`) runs every 10 minutes to extract buffered counts and perform a **Bulk Write** to MongoDB.
+* **Impact**: This transforms thousands of high-frequency database writes into a single batch operation, drastically reducing I/O overhead.
+
+
+
+---
+
+### 4. Optimized Data & Algorithmic Patterns
+Mathematical and algorithmic efficiencies are applied to the database schema for maximum scale.
+
+* **Persistent Counter Pattern**: Subscriber counts are denormalized and stored directly on the `User` model, turning an $O(N)$ aggregation into an **$O(1)$** lookup.
+* **Compound Indexing**: A compound unique index `{ subscriber: 1, channel: 1 }` reduces search complexity from $O(N)$ to **$O(\log N)$** and prevents race conditions at the database layer.
+* **Parallelism**: Controllers utilize `Promise.all()` to execute metadata counting and data fetching concurrently, reducing total API response time by roughly **50%**.
+
+---
+
+### 5. Orchestration & Containerization
+The entire environment is orchestrated to ensure consistency across all scaled instances.
+
+* **Dockerization**: A `node:alpine` based Dockerfile provides a lightweight and consistent runtime environment for all backend nodes.
+* **Docker Compose**: Manages the lifecycle of all backend containers, ensuring they share the same environment variables and network configurations defined in the `.env` file.
+* **Build Efficiency**: A `.dockerignore` file prevents local `node_modules` from bloating the image, ensuring fresh, platform-compatible installs during the build process.
