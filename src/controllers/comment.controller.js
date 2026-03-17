@@ -15,7 +15,7 @@ const getVideoComments = asyncHandler(async(req, res) => {
         throw new ApiError(400, "Invalid Video ID format");
     }
 
-    const aggregate = Comment.aggregate([
+    const aggregate = await Comment.aggregate([
         {
             $match: {
                 video: new mongoose.Types(videoId)

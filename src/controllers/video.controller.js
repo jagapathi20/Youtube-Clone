@@ -68,7 +68,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         {$unwind: "$ownerDetails"}
     )
 
-    const videoAggreagate = Video.aggregate(pipeline)
+    const videoAggreagate = await Video.aggregate(pipeline)
 
     const options = {
         page: parseInt(page, 1),

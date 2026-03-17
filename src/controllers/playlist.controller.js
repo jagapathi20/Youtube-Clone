@@ -138,13 +138,13 @@ const deletePlaylist = asyncHandler(async(req, res) => {
         throw new ApiError(400, "Invalid playlist ID")
     }
 
-    const playlist = Playlist.findById(playlistId)
+    const playlist = await Playlist.findById(playlistId)
 
     if(playlist.owner.toString() !== userId.toString()){
         throw new ApiError(403, "You do not have permission to delete this playlist");
     }
     
-    Playlist.findByIdAndDelete(playlistId)
+    await Playlist.findByIdAndDelete(playlistId)
 
     return res
     .status(200)
@@ -165,7 +165,7 @@ const updatePlaylist = asyncHandler(async(req, res) => {
         throw new ApiError(400, "name or description is required")
     }
 
-    const playlist = Playlist.findById(playlistId)
+    const playlist = await Playlist.findById(playlistId)
 
     if(playlist.owner.toString() !== userId.toString()){
         throw new ApiError(403, "You do not have permission to update this playlist");

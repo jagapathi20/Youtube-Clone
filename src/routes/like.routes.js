@@ -12,7 +12,7 @@ const router = Router()
 router.use(verifyJWT)
 
 router.route("/toggle/v/:videoId").post(toggleVideoLike)
-router.route("/togle/t/:tweetId").post(toggleTweetLike)
+router.route("/toggle/t/:tweetId").post(toggleTweetLike)
 router.route("/toggle/c/:commentId").post(toggleCommentLike)
 router.route("/likedVideos").get(getLikedVideos)
 

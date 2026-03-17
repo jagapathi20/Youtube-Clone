@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 import connectDB from "./db/index.js"
 import {app} from "./app.js"
-import {connectRedis} from "./db.redis.js"
+import {connectRedis} from "./db/redis.js"
 import "./cron/viewSync.cron.js"
 
 dotenv.config({

@@ -18,4 +18,8 @@ redisClient.on("error", (err) => {
     console.log("ioredis: Connection Error", err)
 })
 
-export {redisClient}
+const connectRedis = async () => {
+    await redisClient.ping()
+}
+
+export {redisClient, connectRedis}
