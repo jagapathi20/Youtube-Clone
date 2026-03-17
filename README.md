@@ -389,26 +389,16 @@ curl -X POST http://localhost:8000/api/v1/users/login \
 - Error handling at every level
 - Clean and readable code
 
-##  Known Issues & Future Improvements
-
-### Known Issues
-1. Some controller functions have incomplete implementations (marked with TODO)
-2. Dashboard analytics endpoints need implementation
-3. Missing title field in video model schema
-4. Typo in like routes (`/togle/t/` should be `/toggle/t/`)
-5. Missing `await` keywords in some promise-based operations
-
-### Suggested Improvements
+### Future Improvements
 1. Implement video transcoding for multiple qualities
 2. Add real-time notifications using WebSockets
 3. Implement search functionality with text indexes
 4. Add video recommendation algorithm
 5. Implement rate limiting for API endpoints
 6. Add comprehensive unit and integration tests
-7. Implement caching layer (Redis)
-8. Add API documentation with Swagger/OpenAPI
-9. Implement video streaming with HLS/DASH
-10. Add content moderation features
+7. Add API documentation with Swagger/OpenAPI
+8. Implement video streaming with HLS/DASH
+    
 
 ##  License
 
@@ -419,7 +409,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 - Inspired by YouTube's architecture and features
 - Built as a learning project to demonstrate backend engineering skills
-- Thanks to the open-source community for excellent tools and libraries
 
 ---
 
