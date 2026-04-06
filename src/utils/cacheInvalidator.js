@@ -1,4 +1,4 @@
-import { redisClient } from "../db/redis.js";
+import { redisClient } from "../config/redis.js";
 
 export const invalidateCache = async(pattern) => {
     try{

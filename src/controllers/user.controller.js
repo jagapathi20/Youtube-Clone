@@ -63,7 +63,12 @@ const registerUser = asyncHandler(async (req, res) =>{
 
     if (!avatar){
         cleanupLocalFiles()
-        throw new ApiError(400, "Failed to upload Avatar file to cloudinary")
+        throw new ApiError(400, "Failed to upload Avatar to cloudinary")
+    }
+
+    if(!coverImage && coverImageLocalPath){
+        cleanupLocalFiles()
+        throw new ApiError(400, "Failed to upload CoverImage to cloudinary")
     }
 
     let user

@@ -2,7 +2,7 @@ import { Router } from "express"
 import {
     getVideoComments,
     addComment,
-    updateComment,
+    patchComment,
     deleteComment
 } from "../controllers/comment.controller.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
@@ -14,6 +14,6 @@ router.use(verifyJWT)
 
 router.route("/:videoId").get(cacheMiddleware(60, false), getVideoComments).post(addComment)
 
-router.route("/c/:commentId").delete(deleteComment).patch(updateComment)
+router.route("/c/:commentId").delete(deleteComment).patch(patchComment)
 
 export default router

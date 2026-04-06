@@ -1,8 +1,8 @@
 import dotenv from "dotenv"
-import connectDB from "./db/index.js"
-import {app} from "./app.js"
-import {connectRedis} from "./db/redis.js"
-import "./cron/viewSync.cron.js"
+import connectDB from "./src/config/db.js"
+import {app} from "./src/app.js"
+import {connectRedis} from "./src/config/redis.js"
+import "./src/cron/viewSync.cron.js"
 
 dotenv.config({
     path: './.env'

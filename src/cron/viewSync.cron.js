@@ -1,5 +1,5 @@
 import cron from "node-cron"
-import { redisClient } from "../db/redis.js"
+import { redisClient } from "../config/redis.js"
 import {Video} from "../models/video.model.js"
 
 cron.schedule("*/10 * * * *", async() => {

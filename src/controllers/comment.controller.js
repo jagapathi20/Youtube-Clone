@@ -1,66 +1,21 @@
-import mongoose from "mongoose"
-import { Comment } from "../models/comment.model.js"
-import {Video} from "../models/video.model.js"
-import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {invalidateCache} from "../utils/cacheInvalidator.js"
+import { 
+    fetchVideoComments ,
+    createComment,
+    updateComment,
+    removeComment,
+} from "../services/comment.service.js"
+
 
 const getVideoComments = asyncHandler(async(req, res) => {
     const {videoId} = req.params
-    const page = parseInt(req.query.page) || 1
-    const limit = parseInt(req.query.limit) || 10
+    const page = req.query.page
+    const limit = req.query.limit
 
-    if (!mongoose.Types.ObjectId.isValid(videoId)) {
-        throw new ApiError(400, "Invalid Video ID format");
-    }
+    const data = { videoId: videoId, page: page, limit: limit}
 
-    const aggregate = await Comment.aggregate([
-        {
-            $match: {
-                video: new mongoose.Types(videoId)
-            }
-        },
-        {
-            $lookup: {
-                from: "users",
-                localField: "owner",
-                foreignField: "_id",
-                as: "owner",
-                pipeline: [
-                    {
-                        $project: {
-                            username: {
-                                username: 1,
-                                fullName: 1,
-                                avatar: 1
-                            }
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            $addFields: {
-                owner: {$first: "owner"}
-            }
-        }
-    ])
-
-    const options = {
-        page: page,
-        limit: limit
-    }
-
-    const comments = await Comment.aggregatePaginate(aggregate, options)
-
-    if(!comments){
-        throw new ApiError(404, "No comments found for this video")
-    }
-
-    if (!comments || comments.docs.length === 0) {
-        throw new ApiError(404, "No comments found for this video");
-    }
+    const comments = await fetchVideoComments(data)
 
     return res
     .status(200)
@@ -72,69 +27,27 @@ const getVideoComments = asyncHandler(async(req, res) => {
 const addComment = asyncHandler(async(req, res) => {
     const {videoId} = req.params
     const {content} = req.body
-    const userId = req.user._id
+    const userId = req.user?._id
     
-    if (!content?.trim()){
-        throw new ApiError(400, "Comment content is required")
-    }
+    const data = { videoId, content, userId}
 
-    if (!mongoose.Types.ObjectId.isValid(videoId)) {
-        throw new ApiError(400, "Invalid Video ID format")
-    }
+    const populatedComment = await createComment(data)
 
-    const videoExists = await Video.findById(videoId);
-    if (!videoExists) {
-        throw new ApiError(404, "Video not found");
-    }
-
-    const comment = await Comment.create({
-        content,
-        video: videoId,
-        owner: userId
-    })
-
-    const populatedComment = await Comment.findById(comment._id)
-    .populate("owner", "username fullName avatar");
-
-    if (!populatedComment) {
-        throw new ApiError(500, "Comment created but failed to fetch details")
-    }
-    
-    await invalidateCache(`comments:${videoId}`)
     return res
     .status(201)
     .json(new ApiResponse(201, populatedComment, "Comment added Successfully"))
 })
 
-const updateComment = asyncHandler(async (req, res) => {
+
+
+const patchComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
     const { content } = req.body;
+    const userId = req.user?._id
 
-    if (!content?.trim()) {
-        throw new ApiError(400, "Content is required to update comment");
-    }
+    const data = { commentId, content, userId}
 
-    if (!mongoose.Types.ObjectId.isValid(commentId)) {
-        throw new ApiError(400, "Invalid Comment ID format");
-    }
-
-    
-    const comment = await Comment.findById(commentId);
-
-    if (!comment) {
-        throw new ApiError(404, "Comment not found");
-    }
-
-    
-    if (comment.owner.toString() !== req.user?._id.toString()) {
-        throw new ApiError(403, "You do not have permission to edit this comment");
-    }
-
-    
-    comment.content = content;
-    const updatedComment = await comment.save({ validateBeforeSave: false });
-
-    await invalidateCache(`comments:${comment.video}`)
+    const updatedComment = await updateComment(data)
     
     return res
         .status(200)
@@ -143,35 +56,20 @@ const updateComment = asyncHandler(async (req, res) => {
 
 
 const deleteComment = asyncHandler(async (req, res) => {
-    const { commentId } = req.params;
+    const {commentId} = req.params
+    const userId = req.user?._id
+    const data = { commentId, userId}
 
-    if (!mongoose.Types.ObjectId.isValid(commentId)) {
-        throw new ApiError(400, "Invalid Comment ID format");
-    }
-
-    const comment = await Comment.findById(commentId);
-
-    if (!comment) {
-        throw new ApiError(404, "Comment not found");
-    }
-
-  
-    if (comment.owner.toString() !== req.user?._id.toString()) {
-        throw new ApiError(403, "You do not have permission to delete this comment");
-    }
-
-   
-    await Comment.findByIdAndDelete(commentId);
-    await invalidateCache(`comments:${comment.video}`)
+    const response_data = await removeComment(data)
 
     return res
         .status(200)
-        .json(new ApiResponse(200, { commentId }, "Comment deleted successfully"));
+        .json(new ApiResponse(200, response_data, "Comment deleted successfully"));
 });
 
 export {
     getVideoComments,
     addComment,
-    updateComment,
+    patchComment,
     deleteComment
 }

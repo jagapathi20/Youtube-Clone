@@ -1,4 +1,4 @@
-import { redisClient } from "../db/redis.js"
+import { redisClient } from "../config/redis.js"
 
 export const cacheMiddleware = (ttl = 300, isPersonalized = false) => {
     return async(req, res, next) => {

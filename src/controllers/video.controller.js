@@ -4,7 +4,7 @@ import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {deleteFromCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js"
-import {redisClient} from "../db/redis.js"
+import {redisClient} from "../config/redis.js"
 import {invalidateCache} from "../utils/cacheInvalidator.js"
 
 const getAllVideos = asyncHandler(async (req, res) => {
