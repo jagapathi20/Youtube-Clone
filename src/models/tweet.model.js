@@ -9,7 +9,7 @@ const tweetSchema = new Schema({
     owner: {
         type: Schema.Types.ObjectId,
         ref: "User",
-        requied: true
+        required: true
     }
 }, {timestamps: true})
 
