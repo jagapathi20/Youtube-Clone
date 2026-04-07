@@ -1,90 +1,40 @@
-import mongoose, {isValidObjectId} from "mongoose"
-import {Like} from "../models/like.model.js"
-import { Video } from "../models/video.model.js"
-import { Comment } from "../models/comment.model.js"
-import {Tweet} from "../models/tweet.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { invalidateCache } from "../utils/cacheInvalidator.js"
+import { fetchLikedVideos, updateCommentLike, updateVideoLike } from "../services/like.service.js"
 
 const toggleVideoLike = asyncHandler(async(req, res) => {
     const {videoId} = req.params
-    const userId = req.user._id
+    const userId = req.user?._id
 
-    if(!isValidObjectId(videoId)){
-        throw new ApiError(400, "Invalid video Id format")
-    }
+    if (!userId) throw new ApiError(401, "Unauthorized")
 
-    const video = await Video.findById(videoId);
-    if (!video) {
-            throw new ApiError(404, "Video not found");
-    }
-    
-    const existingLike = await Like.findOne({
-        video: video,
-        likedBy: userId
-    })
+    const data = {videoId, userId}
 
-    let isLikedNow
-    if(existingLike){
-        await Like.findByIdAndDelete(existingLike._id)
-        isLikedNow = false
-
-    }else{
-        await Like.create({
-            video: videoId,
-            likedBy: userId
-        })
-        isLikedNow = true
-
-    }
-
-    await invalidateCache(`stats:u:${video.owner}`)
+    const result = await updateVideoLike(data)
 
     return res
         .status(200)
         .json(new ApiResponse(
             200, 
-            { isLiked: isLikedNow }, 
-            isLikedNow ? "Liked successfully" : "Unliked successfully"
+            result
         ));
 })
 
 const toggleCommentLike = asyncHandler(async(req, res) => {
     const {commentId} = req.params
-    const userId = req.user._id
+    const userId = req.user?._id
 
-    if(!isValidObjectId(commentId)){
-        throw new ApiError(400, "Invalid comment Id format")
-    }
+    if (!userId) throw new ApiError(401, "Unauthorized")
 
-    const comment = await Comment.findById(commentId);
-    if (!comment) {
-            throw new ApiError(404, "comment not found");
-    }
+    const data = {commentId, userId}
+
+    const result = await updateCommentLike(data)
     
-    const existingLike = await Like.findOne({
-        comment: commentId,
-        likedBy: userId
-    })
-
-    if (existingLike) {
-        await Like.findByIdAndDelete(existingLike._id);
-        
-        return res
-            .status(200)
-            .json(new ApiResponse(200, { isLiked: false }, "Unliked successfully"));
-    } else {
-        await Like.create({
-            comment: commentId,
-            likedBy: userId
-        });
-
-        return res
-            .status(200)
-            .json(new ApiResponse(200, { isLiked: true }, "Liked successfully"));
-    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result))
+   
     
 })
 
@@ -92,91 +42,31 @@ const toggleTweetLike = asyncHandler(async(req, res) => {
     const {tweetId} = req.params
     const userId = req.user._id
 
-    if(!isValidObjectId.isValid(tweetId)){
-        throw new ApiError(400, "Invalid tweet Id format")
-    }
+    if (!userId) throw new ApiError(401, "Unauthorized")
 
-    const tweetExists = await Tweet.findById(tweetId);
-    if (!tweetExists) {
-            throw new ApiError(404, "tweet not found");
-    }
+    const data = {tweetId, userId}
+
+    const result = await updateTweetLike(data)
     
-    const existingLike = await Like.findOne({
-        tweet: tweetId,
-        likedBy: userId
-    });
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result))
 
-    if (existingLike) {
-        await Like.findByIdAndDelete(existingLike._id);
-        
-        return res
-            .status(200)
-            .json(new ApiResponse(200, { isLiked: false }, "Unliked successfully"));
-    } else {
-        await Like.create({
-            tweet: tweetId,
-            likedBy: userId
-        });
-
-        return res
-            .status(200)
-            .json(new ApiResponse(200, { isLiked: true }, "Liked successfully"));
-    }
 })
 
 const getLikedVideos = asyncHandler(async (req, res) => {
-    const userId = req.user._id
+    const userId = req.user?._id
 
-    const likedVideos = await Like.aggregate([
-        {
-            $match:{
-                likedBy: new mongoose.Types.ObjectId(userId),
-                video: { $exists: true, $ne: null}
-            }
-        },
-        {
-            $lookup:{
-                from: "vidoes",
-                localField: "video",
-                foreignField: "_id",
-                as: "videoDetails",
-                pipeline:[
-                    {
-                        $lookup:{
-                            from: "users",
-                            localField: "owner",
-                            foreignField: "_id",
-                            as: "ownerDetails",
-                            pipeline:[
-                                {
-                                    $project: {
-                                        username: 1,
-                                        fullName: 1,
-                                        avatar: 1
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        $addFields: {
-                            owner: {$first: "ownerDetails"}
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            $unwind:"$videoDetails"
-        },
-        {
-            $replaceRoot: {newRoot: "$videoDetails"}
-        }
-    ])
+    if (!userId) throw new ApiError(401, "Unauthorized")
+
+    const data = {userId}
+
+    const result = await fetchLikedVideos(data)
+    
 
     return res
     .status(200)
-    .json(new ApiResponse(200, likedVideos, "Liked videos fetched successfully"))
+    .json(new ApiResponse(200, result, "Liked videos fetched successfully"))
 
 })
 
