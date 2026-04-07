@@ -15,11 +15,11 @@ const getVideoComments = asyncHandler(async(req, res) => {
 
     const data = { videoId: videoId, page: page, limit: limit}
 
-    const comments = await fetchVideoComments(data)
+    const result = await fetchVideoComments(data)
 
     return res
     .status(200)
-    .json(new ApiResponse(200, comments, "Comments featched successfully"))
+    .json(new ApiResponse(200, result, "Comments featched successfully"))
 })
 
 
@@ -29,13 +29,15 @@ const addComment = asyncHandler(async(req, res) => {
     const {content} = req.body
     const userId = req.user?._id
     
+    if (!userId) throw new ApiError(401, "Unauthorized")
+
     const data = { videoId, content, userId}
 
-    const populatedComment = await createComment(data)
+    const result = await createComment(data)
 
     return res
     .status(201)
-    .json(new ApiResponse(201, populatedComment, "Comment added Successfully"))
+    .json(new ApiResponse(201, result, "Comment added Successfully"))
 })
 
 
@@ -45,13 +47,15 @@ const patchComment = asyncHandler(async (req, res) => {
     const { content } = req.body;
     const userId = req.user?._id
 
+    if (!userId) throw new ApiError(401, "Unauthorized");
+
     const data = { commentId, content, userId}
 
-    const updatedComment = await updateComment(data)
+    const result = await updateComment(data)
     
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedComment, "Comment updated successfully"));
+        .json(new ApiResponse(200, result, "Comment updated successfully"));
 });
 
 
@@ -60,11 +64,13 @@ const deleteComment = asyncHandler(async (req, res) => {
     const userId = req.user?._id
     const data = { commentId, userId}
 
-    const response_data = await removeComment(data)
+    if (!userId) throw new ApiError(401, "Unauthorized");
+
+    const result = await removeComment(data)
 
     return res
         .status(200)
-        .json(new ApiResponse(200, response_data, "Comment deleted successfully"));
+        .json(new ApiResponse(200, result, "Comment deleted successfully"));
 });
 
 export {

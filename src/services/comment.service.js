@@ -1,4 +1,4 @@
-import mongoose from "mongoose"
+import mongoose, { isValidObjectId }from "mongoose"
 import { Comment } from "../models/comment.model.js"
 import {Video} from "../models/video.model.js"
 import {ApiError} from "../utils/ApiError.js"
@@ -7,7 +7,7 @@ import {invalidateCache} from "../utils/cacheInvalidator.js"
 const fetchVideoComments = async(data) => {
     const { videoId, page = 1, limit = 10} = data
 
-    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid Video ID format");
     }
 
@@ -64,8 +64,8 @@ const createComment = async(data) => {
         throw new ApiError(400, "Comment content is required")
     }
 
-    if (!mongoose.Types.ObjectId.isValid(videoId)) {
-        throw new ApiError(400, "Invalid Video ID format")
+    if (!isValidObjectId(videoId) || isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid ID format")
     }
 
     const videoExists = await Video.findById(videoId).select("_id")
@@ -98,8 +98,8 @@ const updateComment = async (data) => {
         throw new ApiError(400, "Content is required to update comment");
     }
 
-    if (!mongoose.Types.ObjectId.isValid(commentId)) {
-        throw new ApiError(400, "Invalid Comment ID format");
+    if (!isValidObjectId(commentId) || !isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid ID format");
     }
 
     
@@ -128,8 +128,8 @@ const updateComment = async (data) => {
 const removeComment = async (data) => {
     const { commentId, userId } = data;
 
-    if (!mongoose.Types.ObjectId.isValid(commentId)) {
-        throw new ApiError(400, "Invalid Comment ID format");
+    if (!isValidObjectId(commentId) || !isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid ID format");
     }
 
     const comment = await Comment.findById(commentId);
