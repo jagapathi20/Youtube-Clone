@@ -1,105 +1,128 @@
 # YouTube Clone - Backend API
 
-A production-ready, scalable backend API for a YouTube-like video streaming platform built with Node.js, Express.js, and MongoDB. This project demonstrates advanced backend engineering concepts including authentication, authorization, file upload handling, aggregation pipelines, and RESTful API design.
+A production-ready, scalable backend API for a YouTube-like video streaming platform built with Node.js, Express.js, and MongoDB. This project demonstrates advanced backend engineering concepts including authentication, authorization, caching, validation, service layer architecture, and clean code practices.
 
-##  Features
+## Features
 
 ### Core Functionality
 - **User Authentication & Authorization**
-  - JWT-based authentication with access and refresh tokens
+  - JWT-based auth with access & refresh tokens
   - Secure password hashing with bcrypt
   - Token rotation and session management
-  - Protected routes with middleware
+  - Protected routes using middleware
 
 - **Video Management**
-  - Video upload and processing
-  - Thumbnail management
-  - Publish/unpublish functionality
-  - Video metadata management
+  - Video upload with thumbnail handling
+  - Publish/unpublish videos
+  - Metadata management
   - Pagination and filtering
 
 - **Social Features**
-  - Like/unlike videos, comments, and tweets
-  - Comment system with nested replies support
-  - Subscription system (channel subscriptions)
+  - Like/Unlike system (videos, comments, tweets)
+  - Nested comment system with replies
+  - Channel subscription system
   - Tweet functionality
   - Watch history tracking
 
 - **Playlist Management**
-  - Create, update, and delete playlists
+  - Create, update, delete playlists
   - Add/remove videos from playlists
-  - User-specific playlist management
 
 - **User Profile**
-  - Channel profile with statistics
-  - Avatar and cover image management
-  - Watch history
-  - Subscriber count and channel analytics
+  - Channel profile with stats
+  - Avatar & cover image management
+  - Subscriber count and analytics
 
-##  Tech Stack
-
+## Tech Stack
 - **Runtime:** Node.js
 - **Framework:** Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **Authentication:** JWT (jsonwebtoken)
+- **Database:** MongoDB with Mongoose
+- **Caching:** Redis
+- **Validation:** Joi
+- **Authentication:** JWT
 - **File Upload:** Multer + Cloudinary
-- **Password Security:** bcrypt
-- **Additional Libraries:**
-  - mongoose-aggregate-paginate-v2 (pagination)
-  - cookie-parser (cookie management)
-  - cors (cross-origin resource sharing)
+- **Security:** bcrypt
+- **Others:** mongoose-aggregate-paginate-v2, cookie-parser, cors
 
-##  Project Structure
+## Project Structure
+```bash
 
+├── docker-compose.yml
+├── dockerfile
+├── index.js
+├── nginx.conf
+├── package-lock.json
+├── package.json
+├── README.md
+├── src
+│   ├── app.js
+│   ├── config
+│   │   ├── db.js
+│   │   └── redis.js
+│   ├── constants.js
+│   ├── controllers
+│   │   ├── comment.controller.js
+│   │   ├── dashboard.controller.js
+│   │   ├── healthcheck.controller.js
+│   │   ├── like.controller.js
+│   │   ├── playlist.controller.js
+│   │   ├── subscription.controller.js
+│   │   ├── tweet.controller.js
+│   │   ├── user.controller.js
+│   │   └── video.controller.js
+│   ├── cron
+│   │   └── viewSync.cron.js
+│   ├── middlewares
+│   │   ├── auth.middleware.js
+│   │   ├── cache.middleware.js
+│   │   ├── error.middleware.js
+│   │   ├── multer.middleware.js
+│   │   └── validator.middleware.js
+│   ├── models
+│   │   ├── comment.model.js
+│   │   ├── like.model.js
+│   │   ├── playlist.model.js
+│   │   ├── subscription.model.js
+│   │   ├── tweet.model.js
+│   │   ├── user.model.js
+│   │   └── video.model.js
+│   ├── routes
+│   │   ├── comment.routes.js
+│   │   ├── dashboard.routes.js
+│   │   ├── healthcheck.routes.js
+│   │   ├── like.routes.js
+│   │   ├── playlist.routes.js
+│   │   ├── subscription.routes.js
+│   │   ├── tweet.routes.js
+│   │   ├── user.routes.js
+│   │   └── video.routes.js
+│   ├── services
+│   │   ├── comment.service.js
+│   │   ├── dashboard.service.js
+│   │   ├── like.service.js
+│   │   ├── playlist.service.js
+│   │   ├── subscription.service.js
+│   │   ├── tweet.service.js
+│   │   ├── user.service.js
+│   │   └── video.service.js
+│   ├── utils
+│   │   ├── ApiError.js
+│   │   ├── ApiResponse.js
+│   │   ├── asyncHandler.js
+│   │   ├── cacheInvalidator.js
+│   │   ├── cleanLocalFiles.js
+│   │   ├── cloudinary.js
+│   │   └── Pagination.js
+│   └── validators
+│       └── user.validator.js
+├── SystemDesignAndScalability.md
+├── tests
+│   ├── Integration
+│   └── unit
+└── tree.txt
 ```
-├── src/
-│   ├── controllers/          # Request handlers
-│   │   ├── user.controller.js
-│   │   ├── video.controller.js
-│   │   ├── comment.controller.js
-│   │   ├── like.controller.js
-│   │   ├── playlist.controller.js
-│   │   ├── subscription.controller.js
-│   │   ├── tweet.controller.js
-│   │   └── dashboard.controller.js
-│   │
-│   ├── models/               # Mongoose schemas
-│   │   ├── user.model.js
-│   │   ├── video.model.js
-│   │   ├── comment.model.js
-│   │   ├── like.model.js
-│   │   ├── playlist.model.js
-│   │   ├── subscription.model.js
-│   │   └── tweet.model.js
-│   │
-│   ├── routes/               # API routes
-│   │   ├── user.routes.js
-│   │   ├── video.routes.js
-│   │   ├── comment.routes.js
-│   │   ├── like.routes.js
-│   │   ├── playlist.routes.js
-│   │   ├── subscription.routes.js
-│   │   └── tweet.routes.js
-│   │
-│   ├── middlewares/          # Custom middlewares
-│   │   ├── auth.middleware.js
-│   │   └── multer.middleware.js
-│   │
-│   ├── utils/                # Utility functions
-│   │   ├── ApiError.js
-│   │   ├── ApiResponse.js
-│   │   ├── asyncHandler.js
-│   │   └── cloudinary.js
-│   │
-│   ├── db/                   # Database configuration
-│   │   └── index.js
-│   │
-│   ├── app.js                # Express app configuration
-│   ├── constants.js          # App constants
-│   └── index.js              # Entry point
-│
-└── public/temp/              # Temporary file storage
-```
+
+
 
 ##  Data Models
 
@@ -229,71 +252,33 @@ GET    /api/v1/healthcheck                 # API health status
 
 ##  Key Technical Highlights
 
-### 1. Advanced MongoDB Aggregation Pipelines
-- Complex multi-stage pipelines for fetching related data
-- Efficient data aggregation with `$lookup`, `$match`, `$addFields`
-- Pagination support using `mongoose-aggregate-paginate-v2`
+## Key Technical Highlights
 
-Example from `user.controller.js`:
-```javascript
-const channel = await User.aggregate([
-    { $match: { username: username?.toLowerCase() } },
-    {
-        $lookup: {
-            from: "subscriptions",
-            localField: "_id",
-            foreignField: "channel",
-            as: "subscribers"
-        }
-    },
-    {
-        $addFields: {
-            subscribersCount: { $size: "$subscribers" },
-            isSubscribed: {
-                $cond: {
-                    if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-                    then: true,
-                    else: false
-                }
-            }
-        }
-    }
-])
+- **Service Layer Architecture** — Clean separation of business logic from controllers
+- **Redis Caching** — Implemented with custom cache middleware and invalidation utilities
+- **Joi Validation** — Robust request validation with dedicated validator files
+- **Enhanced Middleware** — Authentication, Multer, Cache, Error, and Validator middlewares
+- **Advanced MongoDB Aggregations** — Complex pipelines with lookup, pagination, and optimization
+- **Secure File Handling** — Multer + Cloudinary with automatic local file cleanup
+- **JWT Authentication** — Access & Refresh tokens with rotation and HTTP-only cookies
+- **Polymorphic Like System** — Single Like model for videos, comments, and tweets
+- **Global Error Handling** — Centralized error middleware with consistent API responses
+
+## API Endpoints
+
+### Authentication & User Management
+```http
+POST   /api/v1/users/register
+POST   /api/v1/users/login
+POST   /api/v1/users/logout
+POST   /api/v1/users/refresh-token
+GET    /api/v1/users/current-user
+PATCH  /api/v1/users/update-account
+PATCH  /api/v1/users/change-avatar
+PATCH  /api/v1/users/update-cover-image
+GET    /api/v1/users/c/:username          # Channel profile
+GET    /api/v1/users/history              # Watch history
 ```
-
-### 2. Secure File Upload Pipeline
-- Multer for multipart form data handling
-- Local temporary storage
-- Cloudinary integration for cloud storage
-- Automatic cleanup of local files
-- Old file deletion when updating
-
-### 3. Middleware Architecture
-- Custom async handler for error management
-- JWT verification middleware
-- Route protection with authentication
-- File upload middleware with Multer
-
-### 4. Error Handling
-- Centralized error handling with custom `ApiError` class
-- Consistent error response format
-- Proper HTTP status codes
-- Async error handling wrapper
-
-### 5. Security Best Practices
-- Password hashing with bcrypt (10 salt rounds)
-- JWT token-based authentication
-- HTTP-only cookies for token storage
-- Refresh token rotation
-- Input validation and sanitization
-- Protected route patterns
-
-### 6. Database Design
-- Proper indexing for performance
-- Reference-based relationships
-- Polymorphic associations (likes model)
-- Timestamps for audit trails
-- Efficient query patterns
 
 ##  Getting Started
 
@@ -380,14 +365,17 @@ curl -X POST http://localhost:8000/api/v1/users/login \
 - **Pagination:** Built-in pagination for large datasets
 - **Mongoose Connection Pooling:** Optimized database connections
 
-##  Code Quality
+## Code Quality
 
-- Consistent code structure and naming conventions
-- Modular architecture for maintainability
-- Separation of concerns (MVC pattern)
-- Reusable utility functions
-- Error handling at every level
-- Clean and readable code
+- **Clean Architecture** with Service Layer for better separation of concerns
+- **Consistent code structure** and naming conventions across the project
+- **Modular and Maintainable** design following industry best practices
+- **Thin Controllers** – Business logic moved to dedicated service files
+- **Robust Validation** using Joi schemas in separate validator files
+- **Comprehensive Error Handling** with custom `ApiError` and global error middleware
+- **Reusable Utilities** for common operations (Cloudinary, caching, file cleanup)
+- **Well-documented** and readable code with clear comments where necessary
+- **Type Safety Awareness** and consistent async/await usage
 
 ### Future Improvements
 1. Implement video transcoding for multiple qualities
