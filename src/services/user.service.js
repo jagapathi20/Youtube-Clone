@@ -164,15 +164,21 @@ const changeAccountDetails = async(data) => {
     const updateFields = {}
     if(fullName) updateFields.fullName = fullName
     if(username) updateFields.username = username
-    const user = await User.findByIdAndUpdate(
-        userId, 
-        {
-            $set: updateFields
-        }, 
+    const existingUser = await User.findById(userId).select('username')
+    let user
+    try{
+       user = User.findByIdAndUpdate(
+        userId,
+        {$set: updateFields},
         {new: true}
-    ).select("-password")
-
-    await invalidateCache(`c:${user.username}`)
+       ).select("-password -refreshToken")
+    }catch(error){
+        if (error.code === 11000) {
+            throw new ApiError(409, "Username is already taken")
+        }
+        throw error
+    }
+    await invalidateCache(`c:${existingUser.username}`)
     return user
 
 }
@@ -180,18 +186,24 @@ const changeAccountDetails = async(data) => {
 const changeUserAvatar = async(data) => {
     const {avatarLocalPath, userId} = data
     const user = await User.findById(userId);
-    const oldAvatarUrl = user?.avatar;
+    if(!user){
+        cleanupLocalFiles(avatarLocalPath)
+        throw new ApiError(404, "User not found")
+    }
+    const oldAvatarUrl = user.avatar;
 
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-    if (!avatar.url) {
+    if (!avatar || !avatar.url) {
         cleanupLocalFiles(avatarLocalPath)
-        throw new ApiError(400, "Error while uploading on Cloudinary");
+        throw new ApiError(500, "Error while uploading on Cloudinary");
     }
 
+    cleanupLocalFiles(avatarLocalPath)
+
     if (oldAvatarUrl) {
-        const publicId = oldAvatarUrl.split("/").slice(-2).join("/").split(".")[0]
+        const publicId = oldAvatarUrl.split("/").pop().split(".")[0]
         await deleteFromCloudinary(publicId);
     }
 
@@ -203,7 +215,7 @@ const changeUserAvatar = async(data) => {
             }
         },
         { new: true }
-    ).select("-password");
+    ).select("-password -refreshToken");
 
     await invalidateCache(`c:${user.username}`)
 
@@ -214,17 +226,22 @@ const changeUserAvatar = async(data) => {
 const changeUserCoverImage = async(data) => {
     const {coverImageLocalPath, userId} = data
     const user = await User.findById(userId)
-    const oldCoverImageUrl = user?.coverImage
+    if(!user){
+        cleanupLocalFiles(coverImageLocalPath)
+        throw new ApiError(404, "User not found")
+    }
+    const oldCoverImageUrl = user.coverImage
 
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
-    if (!coverImage.url) {
+    if (!coverImage || !coverImage.url) {
         cleanupLocalFiles(coverImageLocalPath)
         throw new ApiError(400, "Error while uploading cover image to Cloudinary")
     }
+    cleanupLocalFiles(coverImageLocalPath)
 
     if (oldCoverImageUrl) {
-        const publicId = oldCoverImageUrl.split("/").slice(-2).join("/").split(".")[0]
+        const publicId = oldCoverImageUrl.split("/").pop().split(".")[0]
         await deleteFromCloudinary(publicId)
     }
 
@@ -236,7 +253,7 @@ const changeUserCoverImage = async(data) => {
             }
         },
         { new: true }
-    ).select("-password")
+    ).select("-password -refreshToken")
 
     await invalidateCache(`c:${user.username}`)
 
@@ -244,12 +261,12 @@ const changeUserCoverImage = async(data) => {
 }
 
 const fetchUserChannelProfile = async(data) => {
-    const {username} = data
+    const {username, userId} = data
 
      const channel = await User.aggregate([
         {
             $match:{
-                username: username?.toLowerCase()
+                username: username.toLowerCase()
             }
         },
         {
@@ -278,7 +295,7 @@ const fetchUserChannelProfile = async(data) => {
                 },
                 isSubscribed:{
                     $cond: {
-                        if: {$in: [new mongoose.Types.ObjectId(req.user?._id), "$subscribers.subscriber"]},
+                        if: {$in: [userId, "$subscribers.subscriber"]},
                         then:true,
                         else: false
                     }

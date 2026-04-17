@@ -150,7 +150,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
     const userId = req.user?._id
 
     if (!fullName && !username){
-        throw new ApiError(400, "any one field is required")
+        throw new ApiError(400, "Atleast one field is required")
     }
 
     const data = {username, fullName, userId}
@@ -172,7 +172,7 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
     }
     const userId = req.user?._id
     const data = {avatarLocalPath, userId}
-    updatedUser = await changeUserAvatar(data)
+    const updatedUser = await changeUserAvatar(data)
     return res
         .status(200)
         .json(new ApiResponse(200, updatedUser, "Avatar updated and old file cleaned up"));
@@ -180,6 +180,7 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path
+    const userId = req.user?._id
 
     if (!coverImageLocalPath) {
         throw new ApiError(400, "Cover image file is missing")
@@ -195,11 +196,12 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async(req, res) =>{
     const {username} = req.params
+    const userId = req.user?._id
 
     if (!username?.trim()){
         throw new ApiError(400, "username is Missing")
     }
-    const data = {username}
+    const data = {username, userId}
 
     const channel = await fetchUserChannelProfile(data)
 
