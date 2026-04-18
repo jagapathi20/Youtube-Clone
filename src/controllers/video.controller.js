@@ -1,86 +1,32 @@
-import mongoose, {isValidObjectId} from "mongoose"
-import {Video} from "../models/video.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {deleteFromCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js"
-import {redisClient} from "../config/redis.js"
-import {invalidateCache} from "../utils/cacheInvalidator.js"
+import {
+    fetchAllVideos,
+    fetchVideoById,
+    uploadAVideo,
+    changeVideo,
+    changeVideo,
+    removeVideo,
+    changePublishStatus,
+} from "../services/video.service.js"
+import { isValidObjectId } from "mongoose"
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
+
+    if (userId && !isValidObjectId(userId)){
+        throw new ApiError(400, "Invalid user id")
+    }
     
-    const pipeline = []
+    const data = {page, limit, query, sortBy, sortType, userId} 
 
-    if(query){
-        pipeline.push({
-            $match: {
-                $or: [
-                    {title: {$regex: query, $options: "i"}},
-                    {description: {$regrez: query, $options: "i"}}
-                ]
-            }
-        })
-    }
+    const videoList = await fetchAllVideos(data)
 
-    if(userId){
-        if(!isValidObjectId(userId)){
-            throw new ApiError(400, "Invalid user id")
-        }
-
-        pipeline.push({
-            $match: {
-                owner: new mongoose.Types.ObjectId(userId)
-            }
-        })
-    }
-
-    pipeline.push({$match: {isPublished: true}})
-
-    if(sortBy && sortType){
-        pipeline.push({
-            $sort: {
-                [sortBy]: sortType === "asc" ? 1 : - 1
-            }
-        })
-    }else{
-        pipeline.push({$sort: {createdAt: - 1}})
-    }
-
-    pipeline.push(
-        {
-            $lookup:{
-                from:"users",
-                localField:"owner",
-                foreignField:"_id",
-                as: "ownerDetails",
-                pipeline:[
-                    {
-                        $project:{
-                            username: 1,
-                            avatar: 1,
-                            fullName: 1
-                        }
-                    }
-                ]
-            }
-        },
-        {$unwind: "$ownerDetails"}
-    )
-
-    const videoAggreagate = await Video.aggregate(pipeline)
-
-    const options = {
-        page: parseInt(page, 1),
-        limit: parseInt(limit, 10)
-    }
-
-    const videoList = await Video.aggregatePaginate(videoAggreagate, options)
-
-    if(!videoList || videoList.docs.length === 0){
+    if(videoList?.docs.length === 0){
         return res
         .status(200)
-        .json(new ApiResponse(200, [], "No videoes found"))
+        .json(new ApiResponse(200, [], "No vidoes found"))
     }
 
     return res
@@ -88,48 +34,34 @@ const getAllVideos = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, videoList, "videos fetched successfully"))
 })
 
+
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description} = req.body
     
-    if([title, description].some((field) => field?.trim() === "")){
+    if ([title, description].some(field => !field?.trim())) {
+        cleanupLocalFiles(req.files?.videoFile?.[0]?.path)
+        cleanupLocalFiles(req.files?.thumbnail?.[0]?.path)
         throw new ApiError(400, "Title and description are required")
     }
 
     const videoLocalPath = req.files?.videoFile[0]?.path
     const thumbnailLocalPath = req.files?.thumbnail[0]?.path
 
-    if(!videoLocalPath){
+    if (!videoLocalPath) {
+        if (thumbnailLocalPath) cleanupLocalFiles(thumbnailLocalPath)
         throw new ApiError(400, "Video file is required")
     }
 
-    if(!thumbnailLocalPath){
+    if (!thumbnailLocalPath) {
+        cleanupLocalFiles(videoLocalPath)
         throw new ApiError(400, "Thumbnail is required")
     }
 
-    const videoFile = await uploadOnCloudinary(videoLocalPath, "video")
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    const userId = req.user._id
 
-    if(!videoFile){
-        throw new ApiError(400, "video upload failed")
-    }
+    const data = {title, description, videoLocalPath, thumbnailLocalPath, userId}
 
-    if(!thumbnail){
-        throw new ApiError(400, "thumbnail upload failed")
-    }
-
-    const video = await Video.create({
-        title,
-        description,
-        duration: videoFile.duration,
-        videoFile: videoFile.url,
-        thumbnail: thumbnail.url,
-        owner: req.user._id,
-        isPublished: true
-    })
-
-    if(!video){
-        throw new ApiError(500, "something went wrong while publishing")
-    }
+    const createdVideo = await uploadAVideo(data)
 
     return res
     .status(201)
@@ -143,12 +75,9 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid Video Id")
     }
 
-    await redisClient.hincrby("video:view:buffer", videoId, 1)
-    const video = await Video.findById(videoId).populate("owner", "username, avatar fullName")
+    const data = {videoId}
 
-    if(!video){
-        throw new ApiError(404, "vieo not found")
-    }
+    const video = await fetchVideoById(data)
 
     return res
     .status(200)
@@ -158,51 +87,24 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     const {title, description} = req.body
+    const userId = req.user._id
 
-    if(isValidObjectId(videoId)){
+    if(!isValidObjectId(videoId)){
         throw new ApiError(400, "Invalid Video ID")
     }
 
-    if(!title?.trim() || !description?.trim()){
-        throw new ApiError(400, "Title and description are required")
-    }
-
-    const oldvideo = await Video.findById(videoId)
-
-    if(!oldvideo){
-        throw new ApiError(404, "video not found")
-    }
-
-    const updatedData = {
-        title,
-        description
+    if(!title?.trim() && !description?.trim()){
+        throw new ApiError(400, "Atleast one of the Title and description is required")
     }
     const thumbnailLocalPath = req.file?.path
 
-    let thumbnail
-    if(thumbnailLocalPath){
-        const newthumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    const data = {videoId, title, description, thumbnailLocalPath} = data
 
-        if(!newthumbnail.url){
-            throw new ApiError(400, "error while uploading thumbnail")
-        }
+    const updatedVideo = await changeVideo(data)
 
-        const oldThumbnail = oldvideo.thumbnail.split("/").pop().split(".")[0]
-        await deleteFromCloudinary(oldThumbnail)
-        updatedData.thumbnail = newthumbnail.url
-    }
-
-    const updatedVideo = await Video.findByIdAndUpdate(
-        videoId,
-        {$set: updatedData},
-        {new: true}
-    )
-
-    await invalidateCache(`v/${videoId}`)
-    await invalidateCache(`all-videos`)
     return res
     .status(200)
-    .json(new ApiResponse(200, updateVideo, "video details updated"))
+    .json(new ApiResponse(200, updatedVideo, "video details updated"))
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -213,26 +115,8 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid videoId")
     }
 
-    const video = await Video.findById(videoId)
-
-    if(!video){
-        throw new ApiError(404, "video not found")
-    }
-
-    if (video.owner.toString() !== userId.toString()) {
-        throw new ApiError(403, "You do not have permission to perform this action");
-    }
-
-    const videoPublicId = video.videoFile.split("/").pop().spli(".")[0]
-    const thumbnailPublicId = video.thumbnail.split("/").pop().split(".")[0]
-
-    await deleteFromCloudinary(videoPublicId)
-    await deleteFromCloudinary(thumbnailPublicId)
-
-    await Video.findByIdAndDelete(videoId)
-
-    await invalidateCache(`v/${videoId}`)
-    await invalidateCache(`all-videos`)
+    const data = {videoId, userId}
+    await removeVideo(data)
 
     return res
     .status(200)
@@ -247,28 +131,16 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid video Id")
     }
 
-    const video = await Video.findById(videoId)
+    const data = {videoId, userId}
 
-    if(!video){
-        throw new ApiError(404, "Video not found")
-    }
-
-    if (video.owner.toString() !== userId.toString()) {
-        throw new ApiError(403, "You do not have permission to perform this action");
-    }
-
-    video.isPublished = !video.isPublished
-
-    await video.save({vallidateBeforeSave: false})
-
-    await invalidateCache(`videos`);
-
+    const isPublished = await changePublishStatus(data)
+    
     return res
     .status(200)
     .json(
         new ApiResponse(
             200,
-            {isPublished: video.isPublished},
+            {isPublished},
             "video publish status toggled successfully"
         )
     )
