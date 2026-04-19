@@ -1,83 +1,79 @@
 import mongoose, {isValidObjectId} from "mongoose"
-import {Playlist} from "../models/playlist.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { invalidateCache } from "../utils/cacheInvalidator.js"
+import {
+    makePlaylist,
+    fetchPlaylistById,
+    fetchUserPlaylist,
+    addVideo,
+    removePlaylist,
+    removeVideo,
+    changePlaylist
+} from "../services/playlist.service.js"
 
 const createPlaylist = asyncHandler(async(req, res) => {
     const userId = req.user._id
     const {name, description} = req.body
 
-    if(!name,trim()){
+    if(!name?.trim()){
         throw new ApiError(400, "Playlist name required")
     }
+    const data = {userId, name, description}
 
-    const playlist = await Playlist.create({
-        name: name,
-        description: description || "",
-        owner: userId,
-        video: []
-    })
+    const playlist = await makePlaylist(data)
 
     return res
     .status(201)
-    .json(new ApiResponse(200,{}, "playlist created successfully")
+    .json(new ApiResponse(201, playlist , "playlist created successfully")
 )
 })
 
 const getUserPlaylists = asyncHandler(async(req, res) => {
-    const {userId} = req.params
+    const { userId } = req.params
+    const requestingUserId = req.user._id
 
-    if(!isValidObjectId(userId)){
-        throw new ApiError(400, "Invalid User ID")
+    if (!isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid user ID")
     }
 
-    const playlists = await Playlist.aggregate([
-        {
-            $match:{
-                owner: new mongoose.Types.ObjectId(userId)
-            }
-        },
-        {
-            $addFields: {
-                totalVideos: { $size: "$video" }
-            }
-        }
-    ])
+    if (userId.toString() !== requestingUserId.toString()) {
+        throw new ApiError(403, "You are not authorized to view these playlists")
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const skip = (page - 1) * limit
+
+    const playlists = await fetchUserPlaylist({ userId, skip, limit })
 
     return res
-    .status(200)
-    .json(new ApiResponse(200, playlists, "User playlists fetched"))
+        .status(200)
+        .json(new ApiResponse(
+            200,
+            {
+                playlists,
+                pagination: {
+                    currentPage: page,
+                    limit,
+                    hasNextPage: playlists.length === limit
+                }
+            },
+            "User playlists fetched successfully"
+        ))
 })
 
 
 const getPlaylistById = asyncHandler(async(req, res) => {
     const {playlistId} = req.params
+    const userId = req.user._id
 
     if(!isValidObjectId(playlistId)){
         throw new ApiError(400, "Invalid playlist ID")
     }
 
-    const playlist = await Playlist.aggregate([
-        {
-            $match:{
-                _id: new mongoose.Types.ObjectId(playlistId)
-            }
-        },
-        {
-            $lookup:{
-                from: "videos",
-                localField: "video",
-                foreignField: "_id",
-                as: "videos"
-            }
-        }
-    ])
-
-    if(!playlist.length){
-        throw new ApiError(404, "playlist not found")
-    }
+    const data = {playlistId, userId}
+    const playlist = await fetchPlaylistById(data)
 
     return res
     .status(200)
@@ -92,19 +88,9 @@ const addVideoToPlaylist = asyncHandler(async(req, res) => {
         throw new ApiError(400, "Invalid IDs")
     }
 
-    const playlist = await Playlist.findByIdAndUpdate(
-        playlistId,
-        {
-            $addToSet: {video: videoId}
-        },
-        {new: true}
-    )
+    const data = {playlistId, videoId}
 
-    if (!playlist) throw new ApiError(404, "Playlist not found")
-
-    await invalidateCache(`playlist:${playlistId}`)
-
-    await invalidateCache(`playlists:u:${req.user._id}`)
+    const playlist = await addVideo(data)
 
     return res
         .status(200)
@@ -113,18 +99,14 @@ const addVideoToPlaylist = asyncHandler(async(req, res) => {
 
 const removeVideoFromPlaylist = asyncHandler(async(req, res) => {
     const {playlistId, videoId} = req.params
+    const userId = req.uer._id
 
     if(!isValidObjectId(playlistId) || !isValidObjectId(videoId)){
         throw new ApiError(400, "Invalid IDs")
     }
+    const data = {playlistId, videoId, userId}
 
-    const playlist = await Playlist.findByIdAndUpdate(
-        playlistId,
-        {
-            $pull: {video: videoId}
-        }, 
-        {new: true}
-    )
+    const playlist = await removeVideo(data)
 
     return res
         .status(200)
@@ -133,18 +115,14 @@ const removeVideoFromPlaylist = asyncHandler(async(req, res) => {
 
 const deletePlaylist = asyncHandler(async(req, res) => {
     const {playlistId} = req.params
+    const userId = req.user._id
 
     if(!isValidObjectId(playlistId)){
         throw new ApiError(400, "Invalid playlist ID")
     }
 
-    const playlist = await Playlist.findById(playlistId)
-
-    if(playlist.owner.toString() !== userId.toString()){
-        throw new ApiError(403, "You do not have permission to delete this playlist");
-    }
-    
-    await Playlist.findByIdAndDelete(playlistId)
+    const data = {playlistId, userId}
+    await removePlaylist(data)
 
     return res
     .status(200)
@@ -161,21 +139,13 @@ const updatePlaylist = asyncHandler(async(req, res) => {
         throw new ApiError(400, "Invalid playlist ID")
     }
 
-    if(!name || !description){
+    if(!name && !description){
         throw new ApiError(400, "name or description is required")
     }
 
-    const playlist = await Playlist.findById(playlistId)
+    const data = {userId, playlistId, name, description}
 
-    if(playlist.owner.toString() !== userId.toString()){
-        throw new ApiError(403, "You do not have permission to update this playlist");
-    }
-
-    if(name) playlist.name = name
-    if(description) playlist.description = description
-    const updatedPlaylist = await playlist.schemaLevelProjections({validateBeforeSave: false})
-    await invalidateCache(`playlist:${playlistId}`)
-    await invalidateCache(`playlist:u:${userId}`)
+    const updatedPlaylist = await changePlaylist(data)
 
     return res
         .status(200)
