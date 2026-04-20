@@ -1,155 +1,147 @@
-import swaggerJsdoc from "swagger-jsdoc"
-import swaggerUi from "swagger-ui-express"
+import swaggerJSDoc from 'swagger-jsdoc'
+import swaggerUi from 'swagger-ui-express'
 
 const options = {
     definition: {
-        openapi: "3.0.3",
+        openapi: '3.0.0',
         info: {
-            title: "YouTube Backend API",
-            version: "1.0.0",
-            description: `
-REST API for a YouTube clone backend built with Node.js, Express, and MongoDB.
-
-**Authentication:** All endpoints require a valid JWT via \`Authorization: Bearer <token>\`.
-
-**Response envelope:** Every response follows the shape:
-\`\`\`json
-{ "statusCode": 200, "data": {}, "message": "...", "success": true }
-\`\`\`
-            `,
+            title: 'YouTube Clone API',
+            version: '1.0.0',
+            description: 'REST API for a YouTube-like platform supporting video upload, comments, likes, playlists, subscriptions, and channel analytics.',
         },
         servers: [
             {
-                url: "/api/v1",
-                description: "API v1",
+                url: 'http://localhost:8000/api/v1',
+                description: 'Development server',
             },
         ],
         components: {
             securitySchemes: {
                 bearerAuth: {
-                    type: "http",
-                    scheme: "bearer",
-                    bearerFormat: "JWT",
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
                 },
             },
             schemas: {
-                ObjectId: {
-                    type: "string",
-                    pattern: "^[a-f\\d]{24}$",
-                    example: "64b8f3e2a1c2d3e4f5a6b7c8",
+                User: {
+                    type: 'object',
+                    properties: {
+                        _id:              { type: 'string',  example: '64abc123def456' },
+                        username:         { type: 'string',  example: 'johndoe' },
+                        email:            { type: 'string',  example: 'john@example.com' },
+                        fullName:         { type: 'string',  example: 'John Doe' },
+                        avatar:           { type: 'string',  example: 'https://res.cloudinary.com/demo/image/upload/avatar.jpg' },
+                        coverImage:       { type: 'string',  example: 'https://res.cloudinary.com/demo/image/upload/cover.jpg' },
+                        watchHistory:     { type: 'array', items: { type: 'string' }, description: 'Array of Video ObjectIds' },
+                        subscribersCount: { type: 'integer', example: 1500 },
+                        createdAt:        { type: 'string',  format: 'date-time' },
+                        updatedAt:        { type: 'string',  format: 'date-time' },
+                    },
+                },
+                Video: {
+                    type: 'object',
+                    properties: {
+                        _id:         { type: 'string',  example: '64vid789abc' },
+                        videoFile:   { type: 'string',  example: 'https://res.cloudinary.com/demo/video/upload/sample.mp4' },
+                        thumbnail:   { type: 'string',  example: 'https://res.cloudinary.com/demo/image/upload/thumb.jpg' },
+                        title:       { type: 'string',  example: 'My First Video' },
+                        description: { type: 'string',  example: 'A cool video description' },
+                        duration:    { type: 'number',  example: 120.5 },
+                        views:       { type: 'integer', example: 1024 },
+                        isPublished: { type: 'boolean', example: true },
+                        owner:       { $ref: '#/components/schemas/User' },
+                        createdAt:   { type: 'string',  format: 'date-time' },
+                        updatedAt:   { type: 'string',  format: 'date-time' },
+                    },
                 },
                 Comment: {
-                    type: "object",
+                    type: 'object',
                     properties: {
-                        _id: { $ref: "#/components/schemas/ObjectId" },
-                        content: { type: "string", example: "Great video!" },
-                        video: { $ref: "#/components/schemas/ObjectId" },
-                        owner: { $ref: "#/components/schemas/ObjectId" },
-                        createdAt: { type: "string", format: "date-time" },
-                        updatedAt: { type: "string", format: "date-time" },
+                        _id:       { type: 'string', example: '64cmt456xyz' },
+                        content:   { type: 'string', example: 'Great video!' },
+                        video:     { type: 'string', example: '64vid789abc', description: 'Video ObjectId' },
+                        owner:     { $ref: '#/components/schemas/User' },
+                        createdAt: { type: 'string', format: 'date-time' },
+                        updatedAt: { type: 'string', format: 'date-time' },
                     },
                 },
-                PaginatedComments: {
-                    type: "object",
+                Like: {
+                    type: 'object',
+                    description: 'A like on a video, comment, or tweet. Only one of video/comment/tweet will be set per document.',
                     properties: {
-                        docs: {
-                            type: "array",
-                            items: { $ref: "#/components/schemas/Comment" },
-                        },
-                        totalDocs: { type: "integer", example: 42 },
-                        limit: { type: "integer", example: 10 },
-                        page: { type: "integer", example: 1 },
-                        totalPages: { type: "integer", example: 5 },
-                        hasPrevPage: { type: "boolean", example: false },
-                        hasNextPage: { type: "boolean", example: true },
-                        prevPage: { type: "integer", nullable: true, example: null },
-                        nextPage: { type: "integer", example: 2 },
+                        _id:       { type: 'string', example: '64lke000abc' },
+                        video:     { type: 'string', example: '64vid789abc',  description: 'Video ObjectId (if liked entity is a video)' },
+                        comment:   { type: 'string', example: '64cmt456xyz',  description: 'Comment ObjectId (if liked entity is a comment)' },
+                        tweet:     { type: 'string', example: '64twt123abc',  description: 'Tweet ObjectId (if liked entity is a tweet)' },
+                        likedBy:   { type: 'string', example: '64abc123def456', description: 'User ObjectId' },
+                        createdAt: { type: 'string', format: 'date-time' },
+                        updatedAt: { type: 'string', format: 'date-time' },
                     },
                 },
-                ApiResponse: {
-                    type: "object",
+                Playlist: {
+                    type: 'object',
                     properties: {
-                        statusCode: { type: "integer" },
-                        data: {},
-                        message: { type: "string" },
-                        success: { type: "boolean" },
+                        _id:         { type: 'string', example: '64pl001xyz' },
+                        name:        { type: 'string', example: 'My Favourites' },
+                        description: { type: 'string', example: 'Videos I love' },
+                        video:       { type: 'array', items: { $ref: '#/components/schemas/Video' }, description: 'Array of Video documents' },
+                        owner:       { $ref: '#/components/schemas/User' },
+                        createdAt:   { type: 'string', format: 'date-time' },
+                        updatedAt:   { type: 'string', format: 'date-time' },
+                    },
+                },
+                Subscription: {
+                    type: 'object',
+                    properties: {
+                        _id:        { type: 'string', example: '64sub999xyz' },
+                        subscriber: { type: 'string', example: '64abc123def456', description: 'User ObjectId of the subscriber' },
+                        channel:    { type: 'string', example: '64xyz789abc123', description: 'User ObjectId of the channel being subscribed to' },
+                        createdAt:  { type: 'string', format: 'date-time' },
+                        updatedAt:  { type: 'string', format: 'date-time' },
+                    },
+                },
+                Tweet: {
+                    type: 'object',
+                    properties: {
+                        _id:       { type: 'string', example: '64twt123abc' },
+                        content:   { type: 'string', example: 'Just uploaded a new video!' },
+                        owner:     { $ref: '#/components/schemas/User' },
+                        createdAt: { type: 'string', format: 'date-time' },
+                        updatedAt: { type: 'string', format: 'date-time' },
                     },
                 },
                 ApiError: {
-                    type: "object",
+                    type: 'object',
                     properties: {
-                        statusCode: { type: "integer" },
-                        message: { type: "string" },
-                        success: { type: "boolean", example: false },
-                        errors: { type: "array", items: { type: "string" } },
-                    },
-                },
-            },
-            responses: {
-                Unauthorized: {
-                    description: "Missing or invalid JWT token.",
-                    content: {
-                        "application/json": {
-                            schema: { $ref: "#/components/schemas/ApiError" },
-                            example: { statusCode: 401, message: "Unauthorized", success: false, errors: [] },
-                        },
-                    },
-                },
-                Forbidden: {
-                    description: "You do not own this resource.",
-                    content: {
-                        "application/json": {
-                            schema: { $ref: "#/components/schemas/ApiError" },
-                            example: { statusCode: 403, message: "You are not allowed to perform this action", success: false, errors: [] },
-                        },
-                    },
-                },
-                NotFound: {
-                    description: "Resource not found.",
-                    content: {
-                        "application/json": {
-                            schema: { $ref: "#/components/schemas/ApiError" },
-                            example: { statusCode: 404, message: "Comment not found", success: false, errors: [] },
-                        },
-                    },
-                },
-                BadRequest: {
-                    description: "Validation error or missing required fields.",
-                    content: {
-                        "application/json": {
-                            schema: { $ref: "#/components/schemas/ApiError" },
-                            example: { statusCode: 400, message: "Content is required", success: false, errors: [] },
-                        },
+                        success: { type: 'boolean', example: false },
+                        message: { type: 'string',  example: 'Error message' },
                     },
                 },
             },
         },
         security: [{ bearerAuth: [] }],
+        tags: [
+            { name: 'Users',         description: 'Auth and user profile management' },
+            { name: 'Videos',        description: 'Video upload, retrieval, and management' },
+            { name: 'Comments',      description: 'Video comments' },
+            { name: 'Likes',         description: 'Like/unlike videos, comments, and tweets' },
+            { name: 'Playlists',     description: 'Playlist management' },
+            { name: 'Subscriptions', description: 'Channel subscriptions' },
+            { name: 'Tweets',        description: 'Short-form posts' },
+            { name: 'Dashboard',     description: 'Channel analytics' },
+            { name: 'Healthcheck', description: 'Server health status' },
+        ],
     },
-    // Glob pattern — add more route files here as you build them out
-    apis: ["../routes/*.js"],
+    apis: ['../routes/*.js'],
 }
 
-const swaggerSpec = swaggerJsdoc(options)
+const swaggerSpec = swaggerJSDoc(options)
 
-/**
- * @param {import("express").Application} app
- */
-export function setupSwagger(app) {
-    app.use(
-        "/api/docs",
-        swaggerUi.serve,
-        swaggerUi.setup(swaggerSpec, {
-            customSiteTitle: "YouTube API Docs",
-            swaggerOptions: {
-                persistAuthorization: true, // keeps JWT filled in across page refreshes
-            },
-        })
-    )
-
-    // Also expose the raw spec as JSON (useful for Postman import)
-    app.get("/api/docs.json", (req, res) => {
-        res.setHeader("Content-Type", "application/json")
-        res.send(swaggerSpec)
-    })
+const setupSwagger = (app) => {
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+        swaggerOptions: { persistAuthorization: true },
+    }))
 }
+
+export default setupSwagger

@@ -4,39 +4,24 @@ import { healthcheck } from "../controllers/healthcheck.controller.js"
 const router = Router();
 
 /**
- * @openapi
- * /api/v1/healthcheck:
+ * @swagger
+ * /healthcheck:
  *   get:
- *     tags:
- *       - Health
- *     summary: Check API health status
- *     description: Returns a simple health response to confirm the backend is running.
- *     operationId: getHealthcheck
+ *     tags: [Healthcheck]
+ *     summary: Health check
+ *     description: Returns 200 if the server is up and running. No authentication required.
  *     security: []
  *     responses:
- *       '200':
- *         description: Service is healthy
+ *       200:
+ *         description: Server is healthy
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *                 data:
- *                   type: object
- *                   additionalProperties: true
- *                 message:
- *                   type: string
- *                   example: Healthcheck fetched successfully
- *                 success:
- *                   type: boolean
- *                   example: true
- *       '500':
- *         description: Internal server error
+ *                 statusCode: { type: integer, example: 200 }
+ *                 message: { type: string, example: Ok }
  */
-
 router.route('/').get(healthcheck);
 
 export default router

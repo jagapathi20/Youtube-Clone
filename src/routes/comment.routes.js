@@ -3,246 +3,189 @@ import {
     getVideoComments,
     addComment,
     patchComment,
-    deleteComment
+    deleteComment,
 } from "../controllers/comment.controller.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 import { cacheMiddleware } from "../middlewares/cache.middleware.js"
 
 const router = Router()
-
 router.use(verifyJWT)
-
-
-/**
- * @swagger
- * tags:
- *   name: Comments
- *   description: Video comment operations
- */
 
 /**
  * @swagger
  * /comments/{videoId}:
  *   get:
- *     summary: Get comments for a video
  *     tags: [Comments]
- *     description: >
- *       Returns a paginated list of comments for the given video.
- *       Responses are cached for **60 seconds**.
+ *     summary: Get comments for a video
+ *     description: Returns paginated comments for the given video. Cached 60 seconds.
  *     parameters:
  *       - in: path
  *         name: videoId
  *         required: true
- *         schema:
- *           $ref: '#/components/schemas/ObjectId'
- *         description: ID of the video to fetch comments for.
+ *         schema: { type: string }
+ *         example: 64vid789abc
  *       - in: query
  *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number (1-indexed).
+ *         schema: { type: integer, default: 1 }
  *       - in: query
  *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *         description: Number of comments per page.
+ *         schema: { type: integer, default: 10 }
  *     responses:
  *       200:
- *         description: Paginated list of comments fetched successfully.
+ *         description: Comments fetched successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
+ *               type: object
+ *               properties:
+ *                 statusCode: { type: integer, example: 200 }
+ *                 message: { type: string, example: Comments fetched successfully }
+ *                 data:
+ *                   type: object
  *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/PaginatedComments'
- *             example:
- *               statusCode: 200
- *               message: Comments fetched successfully
- *               success: true
- *               data:
- *                 docs:
- *                   - _id: "64b8f3e2a1c2d3e4f5a6b7c8"
- *                     content: "Amazing content!"
- *                     video: "64b8f3e2a1c2d3e4f5a6b700"
- *                     owner: "64b8f3e2a1c2d3e4f5a6b711"
- *                     createdAt: "2024-06-01T10:30:00.000Z"
- *                     updatedAt: "2024-06-01T10:30:00.000Z"
- *                 totalDocs: 42
- *                 limit: 10
- *                 page: 1
- *                 totalPages: 5
- *                 hasPrevPage: false
- *                 hasNextPage: true
- *                 prevPage: null
- *                 nextPage: 2
+ *                     docs:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Comment'
+ *                     totalDocs: { type: integer, example: 45 }
+ *                     page: { type: integer, example: 1 }
+ *                     totalPages: { type: integer, example: 5 }
  *       401:
- *         $ref: '#/components/responses/Unauthorized'
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *
  *   post:
- *     summary: Add a comment to a video
  *     tags: [Comments]
- *     description: >
- *       Creates a new comment on the specified video.
- *       The authenticated user is automatically set as the comment owner.
+ *     summary: Add a comment to a video
  *     parameters:
  *       - in: path
  *         name: videoId
  *         required: true
- *         schema:
- *           $ref: '#/components/schemas/ObjectId'
- *         description: ID of the video to comment on.
+ *         schema: { type: string }
+ *         example: 64vid789abc
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - content
+ *             required: [content]
  *             properties:
  *               content:
  *                 type: string
- *                 minLength: 1
- *                 example: This tutorial is incredibly well-explained!
+ *                 example: Great video, really helpful!
  *     responses:
  *       201:
- *         description: Comment created successfully.
+ *         description: Comment added successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Comment'
- *             example:
- *               statusCode: 201
- *               message: Comment added Successfully
- *               success: true
- *               data:
- *                 _id: "64b8f3e2a1c2d3e4f5a6b7c9"
- *                 content: "This tutorial is incredibly well-explained!"
- *                 video: "64b8f3e2a1c2d3e4f5a6b700"
- *                 owner: "64b8f3e2a1c2d3e4f5a6b711"
- *                 createdAt: "2024-06-02T09:15:00.000Z"
- *                 updatedAt: "2024-06-02T09:15:00.000Z"
+ *               type: object
+ *               properties:
+ *                 statusCode: { type: integer, example: 201 }
+ *                 message: { type: string, example: Comment added successfully }
+ *                 data:
+ *                   $ref: '#/components/schemas/Comment'
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: Comment content is empty
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
- *         $ref: '#/components/responses/Unauthorized'
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 router.route("/:videoId").get(cacheMiddleware(60, false), getVideoComments).post(addComment)
-
 
 /**
  * @swagger
  * /comments/c/{commentId}:
  *   patch:
- *     summary: Update a comment
  *     tags: [Comments]
- *     description: >
- *       Updates the content of an existing comment.
- *       Only the **owner** of the comment can perform this action.
+ *     summary: Update a comment
+ *     description: Edits comment content. Owner only.
  *     parameters:
  *       - in: path
  *         name: commentId
  *         required: true
- *         schema:
- *           $ref: '#/components/schemas/ObjectId'
- *         description: ID of the comment to update.
+ *         schema: { type: string }
+ *         example: 64cmt456xyz
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - content
+ *             required: [content]
  *             properties:
  *               content:
  *                 type: string
- *                 minLength: 1
- *                 example: "Updated: Even better than I first thought!"
+ *                 example: Updated comment text
  *     responses:
  *       200:
- *         description: Comment updated successfully.
+ *         description: Comment updated successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Comment'
- *             example:
- *               statusCode: 200
- *               message: Comment updated successfully
- *               success: true
- *               data:
- *                 _id: "64b8f3e2a1c2d3e4f5a6b7c9"
- *                 content: "Updated: Even better than I first thought!"
- *                 video: "64b8f3e2a1c2d3e4f5a6b700"
- *                 owner: "64b8f3e2a1c2d3e4f5a6b711"
- *                 createdAt: "2024-06-02T09:15:00.000Z"
- *                 updatedAt: "2024-06-02T11:45:00.000Z"
- *       400:
- *         $ref: '#/components/responses/BadRequest'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
+ *               type: object
+ *               properties:
+ *                 statusCode: { type: integer, example: 200 }
+ *                 message: { type: string, example: Comment updated successfully }
+ *                 data:
+ *                   $ref: '#/components/schemas/Comment'
  *       403:
- *         $ref: '#/components/responses/Forbidden'
+ *         description: Forbidden — not the comment owner
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Comment not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *
  *   delete:
- *     summary: Delete a comment
  *     tags: [Comments]
- *     description: >
- *       Permanently deletes the specified comment.
- *       Only the **owner** of the comment can perform this action.
+ *     summary: Delete a comment
+ *     description: Permanently removes a comment. Owner only.
  *     parameters:
  *       - in: path
  *         name: commentId
  *         required: true
- *         schema:
- *           $ref: '#/components/schemas/ObjectId'
- *         description: ID of the comment to delete.
+ *         schema: { type: string }
+ *         example: 64cmt456xyz
  *     responses:
  *       200:
- *         description: Comment deleted successfully.
+ *         description: Comment deleted successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         _id:
- *                           $ref: '#/components/schemas/ObjectId'
- *             example:
- *               statusCode: 200
- *               message: Comment deleted successfully
- *               success: true
- *               data:
- *                 _id: "64b8f3e2a1c2d3e4f5a6b7c9"
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
+ *               type: object
+ *               properties:
+ *                 statusCode: { type: integer, example: 200 }
+ *                 message: { type: string, example: Comment deleted successfully }
  *       403:
- *         $ref: '#/components/responses/Forbidden'
+ *         description: Forbidden — not the comment owner
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Comment not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 router.route("/c/:commentId").delete(deleteComment).patch(patchComment)
+
+export default router
