@@ -6,7 +6,6 @@ import {
     fetchVideoById,
     uploadAVideo,
     changeVideo,
-    changeVideo,
     removeVideo,
     changePublishStatus,
 } from "../services/video.service.js"

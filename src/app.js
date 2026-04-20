@@ -1,7 +1,7 @@
 import express, { json } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
-import setupSwagger from "./config/swagger.js"
+import {setupSwagger} from "./config/swagger.js"
 import { errorHandler } from "./middlewares/error.middleware.js"
 import { globalLimiter } from './middlewares/rateLimiter.middleware.js';
 

@@ -140,7 +140,7 @@ const AccessToken = async(data) => {
     return {accessToken, refreshToken}
 }
 
-const ChangePassword = async(data) => {
+const changePassword = async(data) => {
     const {oldPassword, newPassword, userId} = data
 
     const user = await User.findById(userId)
@@ -380,7 +380,7 @@ export {
     login,
     logout,
     AccessToken,
-    ChangePassword,
+    changePassword,
     changeAccountDetails,
     changeUserAvatar,
     changeUserCoverImage,
