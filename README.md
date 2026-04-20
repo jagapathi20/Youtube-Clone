@@ -50,6 +50,7 @@ A production-ready, scalable backend API for a YouTube-like video streaming plat
 ├── docker-compose.yml
 ├── dockerfile
 ├── index.js
+├── jest.config.js
 ├── nginx.conf
 ├── package-lock.json
 ├── package.json
@@ -58,7 +59,8 @@ A production-ready, scalable backend API for a YouTube-like video streaming plat
 │   ├── app.js
 │   ├── config
 │   │   ├── db.js
-│   │   └── redis.js
+│   │   ├── redis.js
+│   │   └── swagger.js
 │   ├── constants.js
 │   ├── controllers
 │   │   ├── comment.controller.js
@@ -77,6 +79,7 @@ A production-ready, scalable backend API for a YouTube-like video streaming plat
 │   │   ├── cache.middleware.js
 │   │   ├── error.middleware.js
 │   │   ├── multer.middleware.js
+│   │   ├── rateLimiter.middleware.js
 │   │   └── validator.middleware.js
 │   ├── models
 │   │   ├── comment.model.js
@@ -119,7 +122,7 @@ A production-ready, scalable backend API for a YouTube-like video streaming plat
 ├── tests
 │   ├── Integration
 │   └── unit
-└── tree.txt
+
 ```
 
 
