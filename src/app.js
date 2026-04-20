@@ -1,9 +1,9 @@
 import express, { json } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
-import swaggerJsdoc from "swagger-jsdoc"
-import swaggerUi from "swagger-ui-express"
+import setupSwagger from "./config/swagger.js"
 import { errorHandler } from "./middlewares/error.middleware.js"
+import { globalLimiter } from './middlewares/rateLimiter.middleware.js';
 
 
 const app = express()
@@ -18,6 +18,7 @@ app.use(express.urlencoded({extended:true, limit:"16kb"}))
 app.use(express.static("public"))
 app.use(cookieParser())
 app.use(errorHandler)
+app.use(globalLimiter)
 
 import userRouter from "./routes/user.routes.js"
 import healthcheckRouter from "./routes/healthcheck.routes.js"
@@ -39,36 +40,6 @@ app.use("/api/v1/likes", likeRouter)
 app.use("/api/v1/playlist", playlistRouter)
 app.use("/api/v1/dashboard", dashboardRouter)
 
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'YouTube Clone API',
-      version: '1.0.0',
-      description: 'API Documentation for the YouTube backend',
-    },
-    servers: [
-      {
-        url: `http://localhost:${process.env.PORT || 8000}`, 
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-    },
-  },
-  apis: ['./src/routes/*.js'], 
-};
-
-
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-
+setupSwagger(app);
 
 export {app}
