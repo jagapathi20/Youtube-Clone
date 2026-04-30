@@ -255,8 +255,6 @@ GET    /api/v1/healthcheck                 # API health status
 
 ##  Key Technical Highlights
 
-## Key Technical Highlights
-
 - **Service Layer Architecture** — Clean separation of business logic from controllers
 - **Redis Caching** — Implemented with custom cache middleware and invalidation utilities
 - **Joi Validation** — Robust request validation with dedicated validator files
@@ -385,18 +383,9 @@ curl -X POST http://localhost:8000/api/v1/users/login \
 2. Add real-time notifications using WebSockets
 3. Implement search functionality with text indexes
 4. Add video recommendation algorithm
-5. Implement rate limiting for API endpoints
-6. Add comprehensive unit and integration tests
-7. Add API documentation with Swagger/OpenAPI
-8. Implement video streaming with HLS/DASH
+5. Add comprehensive unit and integration tests
+6. Implement video streaming with HLS/DASH
     
-
-##  License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-
-##  Acknowledgments
 
 - Inspired by YouTube's architecture and features
 - Built as a learning project to demonstrate backend engineering skills
