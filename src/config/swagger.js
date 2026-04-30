@@ -11,8 +11,8 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:8000/api/v1',
-                description: 'Development server',
+                url: 'http://143.110.178.39/api/v1',
+                description: 'Production server',
             },
         ],
         components: {
@@ -133,7 +133,7 @@ const options = {
             { name: 'Healthcheck', description: 'Server health status' },
         ],
     },
-    apis: ['../routes/*.js'],
+    apis: ['./src/routes/*.js'],
 }
 
 const swaggerSpec = swaggerJSDoc(options)
