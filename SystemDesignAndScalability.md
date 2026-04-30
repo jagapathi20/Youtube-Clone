@@ -1,16 +1,3 @@
-# Subscription Module
-
-## Database Schema Design
-
-The `Subscription` model is designed as a join-table to handle the many-to-many relationship between users (subscribers) and channels.
-
-### **Model Definition**
-- **Subscriber**: Reference to the `User` model.
-- **Channel**: Reference to the `User` model being subscribed to.
-- **Timestamps**: Automatically managed `createdAt` and `updatedAt` fields for activity tracking.
-
----
-
 ##  Performance Optimizations
 
 ### **1. Advanced Indexing Strategy**
